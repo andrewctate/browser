@@ -105,10 +105,24 @@ def request(url: str):
     return headers, response_body
 
 
+entity_to_chars = {
+    "&lt;": '<',
+    "&gt;": '>',
+}
+
+
+def get_entity_chars(entity: str):
+    if entity in entity_to_chars:
+        return entity_to_chars[entity]
+    return entity
+
+
 def show(body: str):
     in_body = False
     tag_name = ''
     in_tag = False
+    entity = ''
+    in_entity = False
 
     for char in body:
         if char == '<':
@@ -120,11 +134,25 @@ def show(body: str):
             tag_name = ''
         elif in_tag:
             tag_name += char
+        elif char == '&':
+            entity = char
+            in_entity = True
+        elif in_entity and char == ';':
+            entity += char
+            print(get_entity_chars(entity), end='')
+            entity = ''
+            in_entity = False
+        elif in_entity:
+            entity += char
         elif in_body and not in_tag:
             print(char, end='')
 
 
 def load(url: str):
+    view_source = url.startswith("view-source:")
+    if view_source:
+        _, url = url.split(':', 1)
+
     headers, body = request(url)
     show(body)
 
