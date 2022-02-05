@@ -5,9 +5,6 @@ import ssl
 def parse_url(url: str):
     scheme, url = url.split("://", 1)
 
-    assert scheme in ["http", "https", "file"], \
-        "Unknown scheme {}".format(scheme)
-
     path = ''
     if '/' in url:
         host, path = url.split('/', 1)
@@ -22,7 +19,7 @@ def parse_url(url: str):
     return scheme, host, port, path
 
 
-def request_remote(scheme, host, port, path):
+def request_remote(scheme: str, host: str, port: str, path: str):
     assert host, "You must provide a host to connect to!"
     assert path, "You must provide a path to request!"
 
@@ -78,6 +75,11 @@ def request_remote(scheme, host, port, path):
     return headers, body
 
 
+def request_local(path: str):
+    with open(path) as file:
+        return file.read()
+
+
 def request(url: str):
     scheme, host, port, path = parse_url(url)
 
@@ -86,6 +88,10 @@ def request(url: str):
 
     if scheme in ["http", "https"]:
         headers, response = request_remote(scheme, host, port, path)
+    elif scheme == "file":
+        response = request_local(path)
+    else:
+        raise RuntimeError(f"Unknown scheme {scheme}")
 
     return headers, response
 
