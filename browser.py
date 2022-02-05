@@ -80,20 +80,29 @@ def request_local(path: str):
         return file.read()
 
 
-def request(url: str):
-    scheme, host, port, path = parse_url(url)
+def parse_data_url(url: str):
+    _, url = url.split(':', 1)  # discard "data:"
+    return url.split(',', 1)
 
-    response = None
+
+def request(url: str):
+    response_body = None
     headers = {}
 
+    if url.startswith("data:"):
+        content_type, response_body = parse_data_url(url)
+        return headers, response_body
+
+    scheme, host, port, path = parse_url(url)
+
     if scheme in ["http", "https"]:
-        headers, response = request_remote(scheme, host, port, path)
+        headers, response_body = request_remote(scheme, host, port, path)
     elif scheme == "file":
-        response = request_local(path)
+        response_body = request_local(path)
     else:
         raise RuntimeError(f"Unknown scheme {scheme}")
 
-    return headers, response
+    return headers, response_body
 
 
 def show(body: str):
