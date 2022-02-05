@@ -5,7 +5,7 @@ import ssl
 def parse_url(url: str):
     scheme, url = url.split("://", 1)
 
-    assert scheme in ["http", "https"], \
+    assert scheme in ["http", "https", "file"], \
         "Unknown scheme {}".format(scheme)
 
     path = ''
@@ -22,11 +22,9 @@ def parse_url(url: str):
     return scheme, host, port, path
 
 
-def request(url: str):
-    scheme, host, port, path = parse_url(url)
-
-    # TODO - does this check belong in the parse_url func?
-    assert host
+def request_remote(scheme, host, port, path):
+    assert host, "You must provide a host to connect to!"
+    assert path, "You must provide a path to request!"
 
     s = socket.socket(
         family=socket.AF_INET,
@@ -78,6 +76,18 @@ def request(url: str):
     s.close()
 
     return headers, body
+
+
+def request(url: str):
+    scheme, host, port, path = parse_url(url)
+
+    response = None
+    headers = {}
+
+    if scheme in ["http", "https"]:
+        headers, response = request_remote(scheme, host, port, path)
+
+    return headers, response
 
 
 def show(body: str):
