@@ -46,8 +46,8 @@ def request_remote(scheme: str, host: str, port: str, path: str):
 
     request = f"GET {path} HTTP/1.1\r\n"
 
-    for header in default_headers.items():
-        request += f"{header[0]}: {header[1]}\r\n"
+    for key, val in default_headers.items():
+        request += f"{key}: {val}\r\n"
 
     request += "\r\n"
 
@@ -105,15 +105,15 @@ def request(url: str):
     return headers, response_body
 
 
-entity_to_chars = {
+entity_to_char = {
     "&lt;": '<',
     "&gt;": '>',
 }
 
 
 def get_entity_chars(entity: str):
-    if entity in entity_to_chars:
-        return entity_to_chars[entity]
+    if entity in entity_to_char:
+        return entity_to_char[entity]
     return entity
 
 
@@ -139,7 +139,8 @@ def show(body: str):
             in_entity = True
         elif in_entity and char == ';':
             entity += char
-            print(get_entity_chars(entity), end='')
+            if in_body:
+                print(get_entity_chars(entity), end='')
             entity = ''
             in_entity = False
         elif in_entity:
@@ -148,13 +149,30 @@ def show(body: str):
             print(char, end='')
 
 
+def escape_html(html: str):
+    char_to_entity = {}
+    for key, val in entity_to_char.items():
+        char_to_entity[val] = key
+
+    escaped = ''
+    for char in html:
+        escaped += char_to_entity[char] if char in char_to_entity else char
+
+    return escaped
+
+
+def build_view_source_html(source: str):
+    return f"<body>{escape_html(source)}</body>"
+
+
 def load(url: str):
     view_source = url.startswith("view-source:")
     if view_source:
         _, url = url.split(':', 1)
 
     headers, body = request(url)
-    show(body)
+    print(escape_html(body))
+    show(build_view_source_html(body) if view_source else body)
 
 
 if __name__ == '__main__':
