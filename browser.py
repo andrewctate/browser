@@ -106,6 +106,8 @@ def request(url: str):
 
 
 def show(body: str):
+    in_body = False
+    tag_name = ''
     in_tag = False
 
     for char in body:
@@ -113,7 +115,12 @@ def show(body: str):
             in_tag = True
         elif char == '>':
             in_tag = False
-        elif not in_tag:
+            if tag_name == "body":
+                in_body = not in_body
+            tag_name = ''
+        elif in_tag:
+            tag_name += char
+        elif in_body and not in_tag:
             print(char, end='')
 
 
