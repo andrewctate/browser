@@ -43,8 +43,18 @@ def request(url: str):
         ctx = ssl.create_default_context()
         s = ctx.wrap_socket(s, server_hostname=host)
 
-    request = f"GET {path} HTTP/1.0\r\n" \
-        + f"Host: {host}\r\n\r\n"
+    default_headers = {
+        "Host": host,
+        # see https://datatracker.ietf.org/doc/html/rfc2068#section-8.1.2.1 for more details
+        "Connection": "close"
+    }
+
+    request = f"GET {path} HTTP/1.1\r\n"
+
+    for header in default_headers.items():
+        request += f"{header[0]}: {header[1]}\r\n"
+
+    request += "\r\n"
 
     s.send(request.encode('utf8'))
 
