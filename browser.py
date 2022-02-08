@@ -40,6 +40,7 @@ def request_remote(scheme: str, host: str, port: str, path: str):
 
     default_headers = {
         "Host": host,
+        "User-Agent": "Andrew's Toy Browser",
         # see https://datatracker.ietf.org/doc/html/rfc2068#section-8.1.2.1 for more details
         "Connection": "close"
     }
