@@ -70,13 +70,25 @@ def extract_response_info(response: bytes):
     version, status, explanation = statusline.split(' ', 2)
 
     headers = {}
-    for line in lines[1:]:
+    for i, line in enumerate(lines[1:]):
         if line == b'':
+            # (b'' was b"\r\n")
             break
         header, value = line.decode("utf-8", "ignore").split(':', 1)
         headers[header.lower()] = value.strip()
 
-    body = lines[-1]
+    body = b''
+    if "transfer-encoding" in headers and headers["transfer-encoding"] == "chunked":
+        # see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Transfer-Encoding#chunked_encoding for more detail
+        chunks = lines[i+3::2]
+        for chunk in chunks:
+            if chunk == b'':
+                # Reached terminating chunk
+                break
+            body += chunk
+    else:
+        body = lines[-1]
+
     try:
         body = decompress(body)
     except:
