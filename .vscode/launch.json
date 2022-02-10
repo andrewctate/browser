@@ -1,0 +1,38 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Local Request",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args": [
+                "file:///Users/andrewtate/workspace/browser/test.html"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Remote Request",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args": [
+                "http://example.org/"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Remote Request (Secure)",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args": [
+                "https://example.org/"
+            ],
+            "console": "integratedTerminal"
+        }
+    ]
+}

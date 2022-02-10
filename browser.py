@@ -1,3 +1,4 @@
+from gzip import decompress
 import socket
 import ssl
 
@@ -42,7 +43,8 @@ def request_remote(scheme: str, host: str, port: str, path: str):
         "Host": host,
         "User-Agent": "Andrew's Toy Browser",
         # see https://datatracker.ietf.org/doc/html/rfc2068#section-8.1.2.1 for more details
-        "Connection": "close"
+        "Connection": "close",
+        "Accept-Encoding": "gzip"
     }
 
     request = f"GET {path} HTTP/1.1\r\n"
@@ -54,24 +56,32 @@ def request_remote(scheme: str, host: str, port: str, path: str):
 
     s.send(request.encode('utf8'))
 
-    response = s.makefile('r', encoding="utf8", newline="\r\n")
+    response = s.makefile('rb', buffering=0).read()
 
-    statusline = response.readline()
+    s.close()
+
+    lines = response.split(b"\r\n")
+
+    statusline = lines[0].decode("utf-8", "ignore")
+
     version, status, explanation = statusline.split(' ', 2)
     assert status == "200", "{}: {}\nRequest:\n{}".format(
         status, explanation, request)
 
     headers = {}
-    while True:
-        line = response.readline()
-        if line == "\r\n":
+    for line in lines[1:]:
+        if line == b'':
             break
-        header, value = line.split(':', 1)
+        header, value = line.decode("utf-8", "ignore").split(':', 1)
         headers[header.lower()] = value.strip()
 
-    body = response.read()
+    body = lines[-1]
+    try:
+        body = decompress(body)
+    except:
+        pass
 
-    s.close()
+    body = body.decode('utf-8', "ignore")
 
     return headers, body
 
@@ -172,7 +182,6 @@ def load(url: str):
         _, url = url.split(':', 1)
 
     headers, body = request(url)
-    print(escape_html(body))
     show(build_view_source_html(body) if view_source else body)
 
 
