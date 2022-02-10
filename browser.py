@@ -2,6 +2,8 @@ from gzip import decompress
 import socket
 import ssl
 
+MAX_REDIRECT_COUNT = 5
+
 
 def parse_url(url: str):
     scheme, url = url.split("://", 1)
@@ -20,10 +22,7 @@ def parse_url(url: str):
     return scheme, host, port, path
 
 
-def request_remote(scheme: str, host: str, port: str, path: str):
-    assert host, "You must provide a host to connect to!"
-    assert path, "You must provide a path to request!"
-
+def fetch_response(scheme: str, host: str, port: str, path: str):
     s = socket.socket(
         family=socket.AF_INET,
         type=socket.SOCK_STREAM,
@@ -60,13 +59,15 @@ def request_remote(scheme: str, host: str, port: str, path: str):
 
     s.close()
 
+    return response
+
+
+def extract_response_info(response: bytes):
     lines = response.split(b"\r\n")
 
     statusline = lines[0].decode("utf-8", "ignore")
 
     version, status, explanation = statusline.split(' ', 2)
-    assert status == "200", "{}: {}\nRequest:\n{}".format(
-        status, explanation, request)
 
     headers = {}
     for line in lines[1:]:
@@ -82,6 +83,28 @@ def request_remote(scheme: str, host: str, port: str, path: str):
         pass
 
     body = body.decode('utf-8', "ignore")
+
+    return status, explanation, headers, body
+
+
+def request_remote(scheme: str, host: str, port: str, path: str):
+    assert host, "You must provide a host to connect to!"
+    assert path, "You must provide a path to request!"
+
+    redirect_count = 0
+
+    while redirect_count < MAX_REDIRECT_COUNT:
+        response = fetch_response(scheme, host, port, path)
+        status, explanation, headers, body = extract_response_info(response)
+
+        if status.startswith("3"):
+            assert "location" in headers, "Redirect response must contain a location header!"
+            scheme, host, port, path = parse_url(headers["location"])
+        else:
+            break
+
+    assert status == "200", "{}: {}\nRequest:\n{}".format(
+        status, explanation, request)
 
     return headers, body
 

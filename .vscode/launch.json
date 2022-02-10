@@ -33,6 +33,16 @@
                 "https://example.org/"
             ],
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Remote Request (Redirect)",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args": [
+                "http://browser.engineering/redirect"
+            ],
+            "console": "integratedTerminal"
         }
     ]
 }
