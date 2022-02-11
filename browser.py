@@ -2,6 +2,8 @@ from gzip import decompress
 import socket
 import ssl
 
+from cache import Cache
+
 MAX_REDIRECT_COUNT = 5
 
 
@@ -99,34 +101,60 @@ def extract_response_info(response: bytes):
     return status, explanation, headers, body
 
 
-def request_remote(scheme: str, host: str, port: str, path: str):
-    assert host, "You must provide a host to connect to!"
-    assert path, "You must provide a path to request!"
-
+def request_remote(url: str):
     redirect_count = 0
+    cache_hit = False
 
     while redirect_count < MAX_REDIRECT_COUNT:
-        response = fetch_response(scheme, host, port, path)
-        status, explanation, headers, body = extract_response_info(response)
+        response = Cache.retrieve(url)
+
+        if response:
+            cache_hit = True
+        else:
+            scheme, host, port, path = parse_url(url)
+
+            assert host, "You must provide a host to connect to!"
+            assert path, "You must provide a path to request!"
+
+            response = fetch_response(scheme, host, port, path)
+
+        status, explanation, headers, body = extract_response_info(
+            response)
 
         if status.startswith("3"):
             assert "location" in headers, "Redirect response must contain a location header!"
-            scheme, host, port, path = parse_url(headers["location"])
+            url = headers["location"]
         else:
             break
+
+        redirect_count += 1
+
+    assert redirect_count < MAX_REDIRECT_COUNT, "Reached max redirects"
 
     assert status == "200", "{}: {}\nRequest:\n{}".format(
         status, explanation, request)
 
+    if not cache_hit:
+        # could cache redirects and 404s as well
+        if "cache-control" in headers:
+            cache_control = headers["cache-control"]
+            if cache_control == "no-cache":
+                pass
+            elif cache_control.startswith("max-age"):
+                _, max_age = cache_control.split('=')
+                Cache.cache(url, response, int(max_age))
+        else:
+            Cache.cache(url, response)
+
     return headers, body
 
 
-def request_local(path: str):
+def request_local(path: str) -> str:
     with open(path) as file:
         return file.read()
 
 
-def parse_data_url(url: str):
+def parse_data_url(url: str) -> list:
     _, url = url.split(':', 1)  # discard "data:"
     return url.split(',', 1)
 
@@ -142,7 +170,7 @@ def request(url: str):
     scheme, host, port, path = parse_url(url)
 
     if scheme in ["http", "https"]:
-        headers, response_body = request_remote(scheme, host, port, path)
+        headers, response_body = request_remote(url)
     elif scheme == "file":
         response_body = request_local(path)
     else:
