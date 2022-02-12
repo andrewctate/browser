@@ -195,34 +195,24 @@ def lex(body: str):
     text = ''
 
     in_body = False
-    tag_name = ''
+    tag_contents = ''
     in_tag = False
-    entity = ''
-    in_entity = False
 
     for char in body:
         if char == '<':
             in_tag = True
         elif char == '>':
             in_tag = False
-            if tag_name == "body":
+            if tag_contents.startswith("body"):
                 in_body = not in_body
-            tag_name = ''
+            tag_contents = ''
         elif in_tag:
-            tag_name += char
-        elif char == '&':
-            entity = char
-            in_entity = True
-        elif in_entity and char == ';':
-            entity += char
-            if in_body:
-                text += get_entity_chars(entity)
-            entity = ''
-            in_entity = False
-        elif in_entity:
-            entity += char
+            tag_contents += char
         elif in_body and not in_tag:
             text += char
+
+    for entity in entity_to_char:
+        text = text.replace(entity, entity_to_char[entity])
 
     return text
 
