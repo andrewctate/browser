@@ -1,6 +1,7 @@
 from gzip import decompress
 import socket
 import ssl
+import tkinter
 
 from cache import Cache
 
@@ -24,7 +25,7 @@ def parse_url(url: str):
     return scheme, host, port, path
 
 
-def fetch_response(scheme: str, host: str, port: str, path: str):
+def fetch_response(scheme: str, host: str, port: str, path: str, accept_compressed=False):
     s = socket.socket(
         family=socket.AF_INET,
         type=socket.SOCK_STREAM,
@@ -44,9 +45,11 @@ def fetch_response(scheme: str, host: str, port: str, path: str):
         "Host": host,
         "User-Agent": "Andrew's Toy Browser",
         # see https://datatracker.ietf.org/doc/html/rfc2068#section-8.1.2.1 for more details
-        "Connection": "close",
-        "Accept-Encoding": "gzip"
+        "Connection": "close"
     }
+
+    if accept_compressed:
+        default_ehdaers["Accept-Encoding"] = "gzip"
 
     request = f"GET {path} HTTP/1.1\r\n"
 
@@ -91,10 +94,11 @@ def extract_response_info(response: bytes):
     else:
         body = lines[-1]
 
-    try:
-        body = decompress(body)
-    except:
-        pass
+    if "content-encoding" in headers:
+        if headers["content-encoding"] == "gzip":
+            body = decompress(body)
+        else:
+            raise TypeError('This browser only accepts gzip encoding')
 
     body = body.decode('utf-8', "ignore")
 
@@ -138,13 +142,9 @@ def request_remote(url: str):
         # could cache redirects and 404s as well
         if "cache-control" in headers:
             cache_control = headers["cache-control"]
-            if cache_control == "no-cache":
-                pass
-            elif cache_control.startswith("max-age"):
+            if cache_control.startswith("max-age"):
                 _, max_age = cache_control.split('=')
                 Cache.cache(url, response, int(max_age))
-        else:
-            Cache.cache(url, response)
 
     return headers, body
 
@@ -191,7 +191,9 @@ def get_entity_chars(entity: str):
     return entity
 
 
-def show(body: str):
+def lex(body: str):
+    text = ''
+
     in_body = False
     tag_name = ''
     in_tag = False
@@ -214,13 +216,15 @@ def show(body: str):
         elif in_entity and char == ';':
             entity += char
             if in_body:
-                print(get_entity_chars(entity), end='')
+                text += get_entity_chars(entity)
             entity = ''
             in_entity = False
         elif in_entity:
             entity += char
         elif in_body and not in_tag:
-            print(char, end='')
+            text += char
+
+    return text
 
 
 def escape_html(html: str):
@@ -239,15 +243,28 @@ def build_view_source_html(source: str):
     return f"<body>{escape_html(source)}</body>"
 
 
-def load(url: str):
-    view_source = url.startswith("view-source:")
-    if view_source:
-        _, url = url.split(':', 1)
+WIDTH, HEIGHT = 800, 600
 
-    headers, body = request(url)
-    show(build_view_source_html(body) if view_source else body)
+
+class Browser:
+    def __init__(self):
+        self.window = tkinter.Tk()
+        self.canvas = tkinter.Canvas(self.window, width=WIDTH, height=HEIGHT)
+        self.canvas.pack()
+
+    def load(self, url: str):
+        view_source = url.startswith("view-source:")
+        if view_source:
+            _, url = url.split(':', 1)
+
+        headers, body = request(url)
+        text = lex(build_view_source_html(body) if view_source else body)
+
+        for c in text:
+            self.canvas.create_text(100, 100, text=c)
 
 
 if __name__ == '__main__':
     import sys
-    load(sys.argv[1])
+    Browser().load(sys.argv[1])
+    tkinter.mainloop()
