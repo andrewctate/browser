@@ -59,13 +59,13 @@ HSTEP, VSTEP = 13, 18
 PSTEP = VSTEP + VSTEP / 2
 
 
-def layout(text):
+def layout(text, width):
     display_list = []
     cursor_x, cursor_y = HSTEP, VSTEP
     for c in text:
         display_list.append((cursor_x, cursor_y, c))
         cursor_x += HSTEP
-        if cursor_x >= WIDTH - HSTEP:
+        if cursor_x >= width - HSTEP:
             cursor_y += VSTEP
             cursor_x = HSTEP
         elif c == '\n':
@@ -75,19 +75,28 @@ def layout(text):
     return display_list
 
 
-WIDTH, HEIGHT = 800, 600
 SCROLL_STEP = 100
 
 
 class Browser:
-    def __init__(self):
+    def __init__(self, initial_width: int, initial_height: int):
+        self.width, self.height = initial_width, initial_height
         self.window = tkinter.Tk()
-        self.canvas = tkinter.Canvas(self.window, width=WIDTH, height=HEIGHT)
+        self.canvas = tkinter.Canvas(
+            self.window, width=self.width, height=self.height)
         self.canvas.pack()
         self.scroll = 0
+        self.text = ''
         self.window.bind("<Down>", self.scrolldown)
         self.window.bind("<Up>", self.scrollup)
         self.window.bind("<MouseWheel>", self.mousewheel)
+        self.window.bind("<Configure>", self.resize)
+
+    def resize(self, e):
+        self.canvas.pack(fill='both', expand=1)
+        self.width, self.height = e.width, e.height
+        self.display_list = layout(self.text, e.width)
+        self.draw()
 
     def mousewheel(self, e):
         scroll_delta = SCROLL_STEP * -e.delta
@@ -107,7 +116,7 @@ class Browser:
     def draw(self):
         self.canvas.delete("all")
         for x, y, c in self.display_list:
-            if y > self.scroll + HEIGHT:
+            if y > self.scroll + self.height:
                 continue
             if y + VSTEP < self.scroll:
                 continue
@@ -119,12 +128,12 @@ class Browser:
             _, url = url.split(':', 1)
 
         headers, body = request_url(url)
-        text = lex(build_view_source_html(body) if view_source else body)
-        self.display_list = layout(text)
+        self.text = lex(build_view_source_html(body) if view_source else body)
+        self.display_list = layout(self.text, self.width)
         self.draw()
 
 
 if __name__ == '__main__':
     import sys
-    Browser().load(sys.argv[1])
+    Browser(800, 600).load(sys.argv[1])
     tkinter.mainloop()
