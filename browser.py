@@ -56,6 +56,7 @@ def build_view_source_html(source: str):
 
 
 HSTEP, VSTEP = 13, 18
+PSTEP = VSTEP + VSTEP / 2
 
 
 def layout(text):
@@ -66,6 +67,9 @@ def layout(text):
         cursor_x += HSTEP
         if cursor_x >= WIDTH - HSTEP:
             cursor_y += VSTEP
+            cursor_x = HSTEP
+        elif c == '\n':
+            cursor_y += PSTEP
             cursor_x = HSTEP
 
     return display_list
