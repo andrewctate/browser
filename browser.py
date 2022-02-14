@@ -90,7 +90,10 @@ class Browser:
         self.window.bind("<MouseWheel>", self.mousewheel)
 
     def mousewheel(self, e):
-        print(e.delta)
+        scroll_delta = SCROLL_STEP * -e.delta
+        if self.scroll + scroll_delta > 0:
+            self.scroll += scroll_delta
+            self.draw()
 
     def scrolldown(self, e):
         self.scroll += SCROLL_STEP
