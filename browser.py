@@ -81,6 +81,7 @@ PSTEP = VSTEP + VSTEP / 2  # TODO use PSTEP again
 
 class Layout:
     def __init__(self, tokens: list[Text | Tag], width: int) -> None:
+        self.line = []
         self.display_list = []
         self.cursor_x = HSTEP
         self.cursor_y = VSTEP
@@ -91,6 +92,8 @@ class Layout:
 
         for tok in only_body(tokens):
             self.token(tok)
+
+        self.flush()
 
     def token(self, tok):
         if isinstance(tok, Text):
@@ -121,11 +124,26 @@ class Layout:
         for word in tok.text.split():
             w = font.measure(word)
             if self.cursor_x + w > self.width - HSTEP:
-                self.cursor_y += font.metrics("linespace") * 1.25
-                self.cursor_x = HSTEP
-            self.display_list.append(
-                (self.cursor_x, self.cursor_y, word, font))
+                self.flush()
+            self.line.append(
+                (self.cursor_x, word, font))
             self.cursor_x += w + font.measure(" ")
+
+    def flush(self):
+        if not self.line:
+            return
+        metrics = [font.metrics() for x, word, font in self.line]
+        max_ascent = max([metric["ascent"] for metric in metrics])
+        baseline = self.cursor_y + 1.25 * max_ascent
+
+        for x, word, font in self.line:
+            y = baseline - font.metrics("ascent")
+            self.display_list.append((x, y, word, font))
+
+        self.cursor_x = HSTEP
+        self.line = []
+        max_descent = max([metric["descent"] for metric in metrics])
+        self.cursor_y = baseline + 1.25 * max_descent
 
 
 SCROLL_STEP = 100
