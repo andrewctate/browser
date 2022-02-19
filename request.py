@@ -1,3 +1,4 @@
+from email.policy import default
 from gzip import decompress
 import socket
 import ssl
@@ -24,7 +25,7 @@ def parse_url(url: str):
     return scheme, host, port, path
 
 
-def fetch_response(scheme: str, host: str, port: str, path: str, accept_compressed=False):
+def fetch_response(scheme: str, host: str, port: str, path: str, accept_compressed=True):
     s = socket.socket(
         family=socket.AF_INET,
         type=socket.SOCK_STREAM,
@@ -48,7 +49,7 @@ def fetch_response(scheme: str, host: str, port: str, path: str, accept_compress
     }
 
     if accept_compressed:
-        default_ehdaers["Accept-Encoding"] = "gzip"
+        default_headers["Accept-Encoding"] = "gzip"
 
     request = f"GET {path} HTTP/1.1\r\n"
 
@@ -134,8 +135,8 @@ def request_remote(url: str):
 
     assert redirect_count < MAX_REDIRECT_COUNT, "Reached max redirects"
 
-    assert status == "200", "{}: {}\nRequest:\n{}".format(
-        status, explanation, request)
+    assert status == "200", "{}: {}\n".format(
+        status, explanation)
 
     if not cache_hit:
         # could cache redirects and 404s as well
