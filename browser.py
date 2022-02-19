@@ -2,6 +2,19 @@ import tkinter
 import tkinter.font
 from request import request_url
 
+
+class Text:
+    def __init__(self, text: str):
+        for entity in entity_to_char:
+            text = text.replace(entity, entity_to_char[entity])
+        self.text = text
+
+
+class Tag:
+    def __init__(self, tag):
+        self.tag = tag
+
+
 entity_to_char = {
     "&lt;": '<',
     "&gt;": '>',
@@ -14,30 +27,41 @@ def get_entity_chars(entity: str):
     return entity
 
 
-def lex(body: str):
-    text = ''
-
-    in_body = False
-    tag_contents = ''
+def lex(html: str):
+    out = []
+    text = ""
     in_tag = False
-
-    for char in body:
-        if char == '<':
+    for c in html:
+        if c == "<":
             in_tag = True
-        elif char == '>':
+            if text:
+                out.append(Text(text))
+            text = ""
+        elif c == ">":
             in_tag = False
-            if tag_contents.startswith("body"):
-                in_body = not in_body
-            tag_contents = ''
-        elif in_tag:
-            tag_contents += char
-        elif in_body and not in_tag:
-            text += char
+            out.append(Tag(text))
+            text = ""
+        else:
+            text += c
+    if not in_tag and text:
+        out.append(Text(text))
+    return out
 
-    for entity in entity_to_char:
-        text = text.replace(entity, entity_to_char[entity])
 
-    return text
+def only_body(tokens):
+    out = []
+    in_body = False
+    for tok in tokens:
+        if isinstance(tok, Tag):
+            if tok.tag.startswith("body"):
+                in_body = True
+            elif tok.tag.startswith("/body"):
+                in_body = False
+
+        if in_body:
+            out.append(tok)
+
+    return out
 
 
 def escape_html(html: str):
@@ -60,17 +84,19 @@ HSTEP, VSTEP = 13, 18
 PSTEP = VSTEP + VSTEP / 2
 
 
-def layout(text: str, width: int, font: tkinter.font.Font):
+def layout(tokens, width: int, font: tkinter.font.Font):
     display_list = []
     cursor_x, cursor_y = HSTEP, VSTEP
 
-    for word in text.split():
-        w = font.measure(word)
-        if cursor_x + w > width - HSTEP:
-            cursor_y += font.metrics("linespace") * 1.25
-            cursor_x = HSTEP
-        display_list.append((cursor_x, cursor_y, word))
-        cursor_x += w + font.measure(" ")
+    for tok in only_body(tokens):
+        if isinstance(tok, Text):
+            for word in tok.text.split():
+                w = font.measure(word)
+                if cursor_x + w > width - HSTEP:
+                    cursor_y += font.metrics("linespace") * 1.25
+                    cursor_x = HSTEP
+                display_list.append((cursor_x, cursor_y, word))
+                cursor_x += w + font.measure(" ")
 
     # for c in text:
     #     display_list.append((cursor_x, cursor_y, c))
@@ -96,7 +122,7 @@ class Browser:
             self.window, width=self.width, height=self.height)
         self.canvas.pack()
         self.scroll = 0
-        self.text = ''
+        self.tokens = []
 
         self.font = tkinter.font.Font(
             family="Times",
@@ -113,7 +139,7 @@ class Browser:
     def resize(self, e):
         self.canvas.pack(fill='both', expand=1)
         self.width, self.height = e.width, e.height
-        self.display_list = layout(self.text, e.width, self.font)
+        self.display_list = layout(self.tokens, e.width, self.font)
         self.draw()
 
     def mousewheel(self, e):
@@ -147,9 +173,10 @@ class Browser:
             _, url = url.split(':', 1)
 
         headers, body = request_url(url)
-        self.text = lex(build_view_source_html(body) if view_source else body)
+        self.tokens = lex(build_view_source_html(body)
+                          if view_source else body)
         self.display_list = layout(
-            self.text, self.width, self.font)
+            self.tokens, self.width, self.font)
         self.draw()
 
 
