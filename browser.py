@@ -61,7 +61,7 @@ def only_body(tokens):
 
 def escape_html(html: str):
     char_to_entity = {}
-    for key, val in entity_to_char.items():
+    for key, val in entities.items():
         char_to_entity[val] = key
 
     escaped = ''
