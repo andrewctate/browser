@@ -1,4 +1,5 @@
 import tkinter
+import tkinter.font
 from request import request_url
 
 entity_to_char = {
@@ -59,18 +60,27 @@ HSTEP, VSTEP = 13, 18
 PSTEP = VSTEP + VSTEP / 2
 
 
-def layout(text, width):
+def layout(text: str, width: int, font: tkinter.font.Font):
     display_list = []
     cursor_x, cursor_y = HSTEP, VSTEP
-    for c in text:
-        display_list.append((cursor_x, cursor_y, c))
-        cursor_x += HSTEP
-        if cursor_x >= width - HSTEP:
-            cursor_y += VSTEP
+
+    for word in text.split():
+        w = font.measure(word)
+        if cursor_x + w > width - HSTEP:
+            cursor_y += font.metrics("linespace") * 1.25
             cursor_x = HSTEP
-        elif c == '\n':
-            cursor_y += PSTEP
-            cursor_x = HSTEP
+        display_list.append((cursor_x, cursor_y, word))
+        cursor_x += w + font.measure(" ")
+
+    # for c in text:
+    #     display_list.append((cursor_x, cursor_y, c))
+    #     cursor_x += HSTEP
+    #     if cursor_x >= width - HSTEP:
+    #         cursor_y += VSTEP
+    #         cursor_x = HSTEP
+    #     elif c == '\n':
+    #         cursor_y += PSTEP
+    #         cursor_x = HSTEP
 
     return display_list
 
@@ -87,6 +97,14 @@ class Browser:
         self.canvas.pack()
         self.scroll = 0
         self.text = ''
+
+        self.font = tkinter.font.Font(
+            family="Times",
+            size=16,
+            weight="bold",
+            slant="italic",
+        )
+
         self.window.bind("<Down>", self.scrolldown)
         self.window.bind("<Up>", self.scrollup)
         self.window.bind("<MouseWheel>", self.mousewheel)
@@ -95,7 +113,7 @@ class Browser:
     def resize(self, e):
         self.canvas.pack(fill='both', expand=1)
         self.width, self.height = e.width, e.height
-        self.display_list = layout(self.text, e.width)
+        self.display_list = layout(self.text, e.width, self.font)
         self.draw()
 
     def mousewheel(self, e):
@@ -120,7 +138,8 @@ class Browser:
                 continue
             if y + VSTEP < self.scroll:
                 continue
-            self.canvas.create_text(x, y - self.scroll, text=c)
+            self.canvas.create_text(
+                x, y - self.scroll, text=c, font=self.font, anchor="nw")
 
     def load(self, url: str):
         view_source = url.startswith("view-source:")
@@ -129,7 +148,8 @@ class Browser:
 
         headers, body = request_url(url)
         self.text = lex(build_view_source_html(body) if view_source else body)
-        self.display_list = layout(self.text, self.width)
+        self.display_list = layout(
+            self.text, self.width, self.font)
         self.draw()
 
 
