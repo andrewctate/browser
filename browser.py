@@ -1,3 +1,4 @@
+from entities import entities
 import tkinter
 import tkinter.font
 from request import request_url
@@ -5,8 +6,8 @@ from request import request_url
 
 class Text:
     def __init__(self, text: str):
-        for entity in entity_to_char:
-            text = text.replace(entity, entity_to_char[entity])
+        for entity in entities:
+            text = text.replace(entity, entities[entity])
         self.text = text
 
 
@@ -15,15 +16,9 @@ class Tag:
         self.tag = tag
 
 
-entity_to_char = {
-    "&lt;": '<',
-    "&gt;": '>',
-}
-
-
 def get_entity_chars(entity: str):
-    if entity in entity_to_char:
-        return entity_to_char[entity]
+    if entity in entities:
+        return entities[entity]
     return entity
 
 
