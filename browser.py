@@ -81,51 +81,48 @@ def build_view_source_html(source: str):
 
 
 HSTEP, VSTEP = 13, 18
-PSTEP = VSTEP + VSTEP / 2
+PSTEP = VSTEP + VSTEP / 2  # TODO use PSTEP again
 
 
-def layout(tokens, width: int):
-    display_list = []
-    cursor_x, cursor_y = HSTEP, VSTEP
+class Layout:
+    def __init__(self, tokens: list[Text | Tag], width: int) -> None:
+        self.display_list = []
+        self.cursor_x = HSTEP
+        self.cursor_y = VSTEP
+        self.width = width
+        self.weight = "normal"
+        self.style = "roman"
+        self.size = 16
 
-    weight = "normal"
-    style = "roman"
+        for tok in only_body(tokens):
+            self.token(tok)
 
-    for tok in only_body(tokens):
+    def token(self, tok):
         if isinstance(tok, Text):
-            font = tkinter.font.Font(
-                size=16,
-                weight=weight,
-                slant=style,
-            )
-            for word in tok.text.split():
-                w = font.measure(word)
-                if cursor_x + w > width - HSTEP:
-                    cursor_y += font.metrics("linespace") * 1.25
-                    cursor_x = HSTEP
-                display_list.append((cursor_x, cursor_y, word, font))
-                cursor_x += w + font.measure(" ")
-
+            self.text(tok)
         elif tok.tag == "i":
-            style = "italic"
+            self.style = "italic"
         elif tok.tag == "/i":
-            style = "roman"
+            self.style = "roman"
         elif tok.tag == "b":
-            weight = "bold"
+            self.weight = "bold"
         elif tok.tag == "/b":
-            weight = "normal"
+            self.weight = "normal"
 
-    # for c in text:
-    #     display_list.append((cursor_x, cursor_y, c))
-    #     cursor_x += HSTEP
-    #     if cursor_x >= width - HSTEP:
-    #         cursor_y += VSTEP
-    #         cursor_x = HSTEP
-    #     elif c == '\n':
-    #         cursor_y += PSTEP
-    #         cursor_x = HSTEP
-
-    return display_list
+    def text(self, tok):
+        font = tkinter.font.Font(
+            size=self.size,
+            weight=self.weight,
+            slant=self.style,
+        )
+        for word in tok.text.split():
+            w = font.measure(word)
+            if self.cursor_x + w > self.width - HSTEP:
+                self.cursor_y += font.metrics("linespace") * 1.25
+                self.cursor_x = HSTEP
+            self.display_list.append(
+                (self.cursor_x, self.cursor_y, word, font))
+            self.cursor_x += w + font.measure(" ")
 
 
 SCROLL_STEP = 100
@@ -149,7 +146,8 @@ class Browser:
     def resize(self, e):
         self.canvas.pack(fill='both', expand=1)
         self.width, self.height = e.width, e.height
-        self.display_list = layout(self.tokens, e.width, self.font)
+        self.display_list = Layout(
+            self.tokens, e.width).display_list
         self.draw()
 
     def mousewheel(self, e):
@@ -185,8 +183,8 @@ class Browser:
         headers, body = request_url(url)
         self.tokens = lex(build_view_source_html(body)
                           if view_source else body)
-        self.display_list = layout(
-            self.tokens, self.width)
+        self.display_list = Layout(
+            self.tokens, self.width).display_list
         self.draw()
 
 
