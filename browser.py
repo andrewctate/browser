@@ -76,7 +76,7 @@ def build_view_source_html(source: str):
 
 
 HSTEP, VSTEP = 13, 18
-PSTEP = VSTEP + VSTEP / 2  # TODO use PSTEP again
+PSTEP = VSTEP * .5
 
 
 class Layout:
@@ -116,6 +116,9 @@ class Layout:
             self.size -= 4
         elif tok.tag == "br" or tok.tag == "br /":
             self.flush()
+        elif tok.tag == "/p":
+            self.flush()
+            self.cursor_y += PSTEP
 
     def text(self, tok):
         font = tkinter.font.Font(
