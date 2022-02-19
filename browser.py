@@ -84,19 +84,36 @@ HSTEP, VSTEP = 13, 18
 PSTEP = VSTEP + VSTEP / 2
 
 
-def layout(tokens, width: int, font: tkinter.font.Font):
+def layout(tokens, width: int):
     display_list = []
     cursor_x, cursor_y = HSTEP, VSTEP
 
+    weight = "normal"
+    style = "roman"
+
     for tok in only_body(tokens):
         if isinstance(tok, Text):
+            font = tkinter.font.Font(
+                size=16,
+                weight=weight,
+                slant=style,
+            )
             for word in tok.text.split():
                 w = font.measure(word)
                 if cursor_x + w > width - HSTEP:
                     cursor_y += font.metrics("linespace") * 1.25
                     cursor_x = HSTEP
-                display_list.append((cursor_x, cursor_y, word))
+                display_list.append((cursor_x, cursor_y, word, font))
                 cursor_x += w + font.measure(" ")
+
+        elif tok.tag == "i":
+            style = "italic"
+        elif tok.tag == "/i":
+            style = "roman"
+        elif tok.tag == "b":
+            weight = "bold"
+        elif tok.tag == "/b":
+            weight = "normal"
 
     # for c in text:
     #     display_list.append((cursor_x, cursor_y, c))
@@ -123,13 +140,6 @@ class Browser:
         self.canvas.pack()
         self.scroll = 0
         self.tokens = []
-
-        self.font = tkinter.font.Font(
-            family="Times",
-            size=16,
-            weight="bold",
-            slant="italic",
-        )
 
         self.window.bind("<Down>", self.scrolldown)
         self.window.bind("<Up>", self.scrollup)
@@ -159,13 +169,13 @@ class Browser:
 
     def draw(self):
         self.canvas.delete("all")
-        for x, y, c in self.display_list:
+        for x, y, c, font in self.display_list:
             if y > self.scroll + self.height:
                 continue
             if y + VSTEP < self.scroll:
                 continue
             self.canvas.create_text(
-                x, y - self.scroll, text=c, font=self.font, anchor="nw")
+                x, y - self.scroll, text=c, font=font, anchor="nw")
 
     def load(self, url: str):
         view_source = url.startswith("view-source:")
@@ -176,7 +186,7 @@ class Browser:
         self.tokens = lex(build_view_source_html(body)
                           if view_source else body)
         self.display_list = layout(
-            self.tokens, self.width, self.font)
+            self.tokens, self.width)
         self.draw()
 
 
