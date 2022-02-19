@@ -114,6 +114,8 @@ class Layout:
             self.size += 4
         elif tok.tag == "/big":
             self.size -= 4
+        elif tok.tag == "br" or tok.tag == "br /":
+            self.flush()
 
     def text(self, tok):
         font = tkinter.font.Font(
