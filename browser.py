@@ -178,9 +178,13 @@ class Browser:
 
     def mousewheel(self, e):
         scroll_delta = SCROLL_STEP * -e.delta
-        if self.scroll + scroll_delta > 0:
-            self.scroll += scroll_delta
-            self.draw()
+
+        # don't let the user scroll beyond the top
+        if self.scroll + scroll_delta < 0:
+            scroll_delta = 0
+
+        self.scroll += scroll_delta
+        self.draw()
 
     def scrolldown(self, e):
         self.scroll += SCROLL_STEP
