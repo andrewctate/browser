@@ -4,6 +4,17 @@ import tkinter.font
 from request import request_url
 
 
+FONTS = {}
+
+
+def get_font(size, weight, slant):
+    key = (size, weight, slant)
+    if key not in FONTS:
+        font = tkinter.font.Font(size=size, weight=weight, slant=slant)
+        FONTS[key] = font
+    return FONTS[key]
+
+
 class Text:
     def __init__(self, text: str):
         for entity in entities:
@@ -121,10 +132,10 @@ class Layout:
             self.cursor_y += PSTEP
 
     def text(self, tok):
-        font = tkinter.font.Font(
-            size=self.size,
-            weight=self.weight,
-            slant=self.style,
+        font = get_font(
+            self.size,
+            self.weight,
+            self.style,
         )
         for word in tok.text.split():
             w = font.measure(word)
