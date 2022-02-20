@@ -90,6 +90,21 @@ HSTEP, VSTEP = 13, 18
 PSTEP = VSTEP * .5
 
 
+def maybe_hyphenate(word: str, too_long):
+    before_hyphen = ''
+    after_hyphen = ''
+    if '\N{soft hyphen}' in word:
+        past_hyphen = False
+        for piece in word.split('\N{soft hyphen}'):
+            if not past_hyphen and not too_long(before_hyphen + piece + '-'):
+                before_hyphen += piece
+            else:
+                past_hyphen = True
+                after_hyphen += piece
+
+    return before_hyphen, after_hyphen
+
+
 class Layout:
     def __init__(self, tokens: list[Text | Tag], width: int) -> None:
         self.line = []
@@ -144,9 +159,21 @@ class Layout:
             self.weight,
             self.style,
         )
+
+        right_margin = self.width - HSTEP
+
         for word in tok.text.split():
             w = font.measure(word)
-            if self.cursor_x + w > self.width - HSTEP:
+            if self.cursor_x + w > right_margin:
+                before_hyphen, after_hyphen = maybe_hyphenate(
+                    word, lambda text: self.cursor_x + font.measure(text) > right_margin)
+
+                if before_hyphen != '':
+                    # we had room to put some of the word on this line
+                    self.line.append(
+                        (self.cursor_x, before_hyphen + '-', font, self.is_super))
+                    word = after_hyphen
+
                 self.flush()
 
             self.line.append(
