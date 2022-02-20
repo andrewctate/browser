@@ -100,6 +100,7 @@ class Layout:
         self.weight = "normal"
         self.style = "roman"
         self.size = 16
+        self.is_super = False
 
         for tok in only_body(tokens):
             self.token(tok)
@@ -125,6 +126,12 @@ class Layout:
             self.size += 4
         elif tok.tag == "/big":
             self.size -= 4
+        elif tok.tag == "sup":
+            self.is_super = True
+            self.size //= 2
+        elif tok.tag == "/sup":
+            self.is_super = False
+            self.size *= 2
         elif tok.tag == "br" or tok.tag == "br /":
             self.flush()
         elif tok.tag == "/p":
@@ -141,19 +148,29 @@ class Layout:
             w = font.measure(word)
             if self.cursor_x + w > self.width - HSTEP:
                 self.flush()
+
             self.line.append(
-                (self.cursor_x, word, font))
+                (self.cursor_x, word, font, self.is_super))
             self.cursor_x += w + font.measure(" ")
 
     def flush(self):
         if not self.line:
             return
-        metrics = [font.metrics() for x, word, font in self.line]
+        metrics = [font.metrics() for x, word, font, is_super in self.line]
         max_ascent = max([metric["ascent"] for metric in metrics])
         baseline = self.cursor_y + 1.25 * max_ascent
+        super_ascent_adjustment = None
 
-        for x, word, font in self.line:
-            y = baseline - font.metrics("ascent")
+        for i, (x, word, font, is_super) in enumerate(self.line):
+            ascent_adjustment = font.metrics("ascent")
+            if is_super and i > 0:
+                if not self.line[i-1][3]:
+                    # record for following super words
+                    super_ascent_adjustment = self.line[i -
+                                                        1][2].metrics("ascent")
+                ascent_adjustment = super_ascent_adjustment
+
+            y = baseline - ascent_adjustment
             self.display_list.append((x, y, word, font))
 
         self.cursor_x = HSTEP
