@@ -1,6 +1,7 @@
 from entities import entities
 import tkinter
 import tkinter.font
+from parser import Element, HTMLParser, Text
 from request import request_url
 
 
@@ -15,59 +16,26 @@ def get_font(size, weight, slant):
     return FONTS[key]
 
 
-class Text:
-    def __init__(self, text: str):
-        for entity in entities:
-            text = text.replace(entity, entities[entity])
-        self.text = text
-
-
-class Tag:
-    def __init__(self, tag):
-        self.tag = tag
-
-
 def get_entity_chars(entity: str):
     if entity in entities:
         return entities[entity]
     return entity
 
 
-def lex(html: str):
-    out = []
-    text = ""
-    in_tag = False
-    for c in html:
-        if c == "<":
-            in_tag = True
-            if text:
-                out.append(Text(text))
-            text = ""
-        elif c == ">":
-            in_tag = False
-            out.append(Tag(text))
-            text = ""
-        else:
-            text += c
-    if not in_tag and text:
-        out.append(Text(text))
-    return out
+# def only_body(tokens):
+#     out = []
+#     in_body = False
+#     for tok in tokens:
+#         if isinstance(tok, Tag):
+#             if tok.tag.startswith("body"):
+#                 in_body = True
+#             elif tok.tag.startswith("/body"):
+#                 in_body = False
 
+#         if in_body:
+#             out.append(tok)
 
-def only_body(tokens):
-    out = []
-    in_body = False
-    for tok in tokens:
-        if isinstance(tok, Tag):
-            if tok.tag.startswith("body"):
-                in_body = True
-            elif tok.tag.startswith("/body"):
-                in_body = False
-
-        if in_body:
-            out.append(tok)
-
-    return out
+#     return out
 
 
 def escape_html(html: str):
@@ -106,7 +74,7 @@ def maybe_hyphenate(word: str, too_long):
 
 
 class Layout:
-    def __init__(self, tokens: list[Text | Tag], width: int) -> None:
+    def __init__(self, tree, width: int) -> None:
         self.line = []
         self.display_list = []
         self.cursor_x = HSTEP
@@ -117,39 +85,47 @@ class Layout:
         self.size = 16
         self.is_super = False
 
-        for tok in only_body(tokens):
-            self.token(tok)
-
+        # for tok in only_body(tokens):
+        self.recurse(tree)
         self.flush()
 
-    def token(self, tok):
-        if isinstance(tok, Text):
-            self.text(tok)
-        elif tok.tag == "i":
+    def recurse(self, tree: Text | Element):
+        if isinstance(tree, Text):
+            self.text(tree)
+        else:
+            self.open_tag(tree.tag)
+            for child in tree.children:
+                self.recurse(child)
+            self.close_tag(tree.tag)
+
+    def open_tag(self, tag):
+        if tag == "i":
             self.style = "italic"
-        elif tok.tag == "/i":
-            self.style = "roman"
-        elif tok.tag == "b":
+        elif tag == "b":
             self.weight = "bold"
-        elif tok.tag == "/b":
-            self.weight = "normal"
-        elif tok.tag == "small":
+        elif tag == "small":
             self.size -= 2
-        elif tok.tag == "/small":
-            self.size += 2
-        elif tok.tag == "big":
+        elif tag == "big":
             self.size += 4
-        elif tok.tag == "/big":
-            self.size -= 4
-        elif tok.tag == "sup":
+        elif tag == "sup":
             self.is_super = True
             self.size //= 2
-        elif tok.tag == "/sup":
+        elif tag == "br":
+            self.flush()
+
+    def close_tag(self, tag):
+        if tag == "i":
+            self.style = "roman"
+        elif tag == "b":
+            self.weight = "normal"
+        elif tag == "small":
+            self.size += 2
+        elif tag == "big":
+            self.size -= 4
+        elif tag == "sup":
             self.is_super = False
             self.size *= 2
-        elif tok.tag == "br" or tok.tag == "br /":
-            self.flush()
-        elif tok.tag == "/p":
+        elif tag == "p":
             self.flush()
             self.cursor_y += PSTEP
 
@@ -217,7 +193,6 @@ class Browser:
             self.window, width=self.width, height=self.height)
         self.canvas.pack()
         self.scroll = 0
-        self.tokens = []
 
         self.window.bind("<Down>", self.scrolldown)
         self.window.bind("<Up>", self.scrollup)
@@ -228,7 +203,7 @@ class Browser:
         self.canvas.pack(fill='both', expand=1)
         self.width, self.height = e.width, e.height
         self.display_list = Layout(
-            self.tokens, e.width).display_list
+            self.nodes, e.width).display_list
         self.draw()
 
     def mousewheel(self, e):
@@ -266,10 +241,12 @@ class Browser:
             _, url = url.split(':', 1)
 
         headers, body = request_url(url)
-        self.tokens = lex(build_view_source_html(body)
-                          if view_source else body)
-        self.display_list = Layout(
-            self.tokens, self.width).display_list
+
+        # self.tokens = lex(build_view_source_html(body)
+        #                   if view_source else body)
+
+        self.nodes = HTMLParser(body).parse()
+        self.display_list = Layout(self.nodes, self.width).display_list
         self.draw()
 
 
