@@ -22,20 +22,8 @@ def get_entity_chars(entity: str):
     return entity
 
 
-# def only_body(tokens):
-#     out = []
-#     in_body = False
-#     for tok in tokens:
-#         if isinstance(tok, Tag):
-#             if tok.tag.startswith("body"):
-#                 in_body = True
-#             elif tok.tag.startswith("/body"):
-#                 in_body = False
-
-#         if in_body:
-#             out.append(tok)
-
-#     return out
+def only_body(root):
+    return root.children[1]
 
 
 def escape_html(html: str):
@@ -85,8 +73,7 @@ class Layout:
         self.size = 16
         self.is_super = False
 
-        # for tok in only_body(tokens):
-        self.recurse(tree)
+        self.recurse(only_body(tree))
         self.flush()
 
     def recurse(self, tree: Text | Element):
