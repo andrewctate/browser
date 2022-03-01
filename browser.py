@@ -61,20 +61,101 @@ def maybe_hyphenate(word: str, too_long):
     return before_hyphen, after_hyphen
 
 
-class Layout:
-    def __init__(self, tree, width: int) -> None:
+# source: https://html.spec.whatwg.org/multipage/#toc-semantics
+BLOCK_ELEMENTS = [
+    "html", "body", "article", "section", "nav", "aside",
+    "h1", "h2", "h3", "h4", "h5", "h6", "hgroup", "header",
+    "footer", "address", "p", "hr", "pre", "blockquote",
+    "ol", "ul", "menu", "li", "dl", "dt", "dd", "figure",
+    "figcaption", "main", "div", "table", "form", "fieldset",
+    "legend", "details", "summary"
+]
+
+
+def get_layout_mode(node: Text | Element) -> str:
+    if isinstance(node, Text):
+        return "inline"
+    elif node.children:
+        for child in node.children:
+            if isinstance(child, Text):
+                continue
+            if child.tag in BLOCK_ELEMENTS:
+                return "block"
+        return "inline"
+    else:
+        return "block"
+
+
+class BlockLayout:
+    def __init__(self, node, parent, previous) -> None:
+        self.node = node
+        self.parent = parent
+        self.previous = previous
+        self.children = []
+
+    def layout(self):
+        self.width = self.parent.width
+        self.x = self.parent.x
+        if self.previous:
+            self.y = self.previous.y + self.previous.height
+        else:
+            self.y = self.parent.y
+
+        previous = None
+        for child in self.node.children:
+            if get_layout_mode(child) == "inline":
+                next = InlineLayout(child, self, previous)
+            else:
+                next = BlockLayout(child, self, previous)
+
+            self.children.append(next)
+            previous = next
+
+        for child in self.children:
+            child.layout()
+
+        # height computation must happen after the children are laid out
+        # since the parent should be tall enough to fit them all
+        self.height = sum([child.height for child in self.children])
+
+    def paint(self, display_list):
+        for child in self.children:
+            child.paint(display_list)
+
+
+class InlineLayout:
+    def __init__(self, node, parent, previous) -> None:
+        self.node = node
+        self.parent = parent
+        self.previous = previous
+        self.children = []
+
+    def layout(self) -> None:
+        # setup defaults
         self.line = []
         self.display_list = []
-        self.cursor_x = HSTEP
-        self.cursor_y = VSTEP
-        self.width = width
         self.weight = "normal"
         self.style = "roman"
         self.size = 16
         self.is_super = False
 
-        self.recurse(only_body(tree))
+        # position according to family
+        self.width = self.parent.width
+        self.x = self.parent.x
+        if self.previous:
+            self.y = self.previous.y + self.previous.height
+        else:
+            self.y = self.parent.y
+        self.cursor_x = self.x
+        self.cursor_y = self.y
+
+        self.recurse(self.node)
         self.flush()
+
+        self.height = self.cursor_y - self.y
+
+    def paint(self, display_list):
+        display_list.extend(self.display_list)
 
     def recurse(self, tree: Text | Element):
         if isinstance(tree, Text):
@@ -163,10 +244,30 @@ class Layout:
             y = baseline - ascent_adjustment
             self.display_list.append((x, y, word, font))
 
-        self.cursor_x = HSTEP
+        self.cursor_x = self.x
         self.line = []
         max_descent = max([metric["descent"] for metric in metrics])
         self.cursor_y = baseline + 1.25 * max_descent
+
+
+class DocumentLayout:
+    def __init__(self, node) -> None:
+        self.node = node
+        self.parent = None
+        self.children = []
+
+    def layout(self, width):
+        child = BlockLayout(self.node, self, None)
+        self.children.append(child)
+
+        self.width = width - 2 * HSTEP
+        self.x = HSTEP
+        self.y = VSTEP
+        child.layout()
+        self.height = child.height + 2 * VSTEP
+
+    def paint(self, display_list):
+        self.children[0].paint(display_list)
 
 
 SCROLL_STEP = 100
@@ -189,9 +290,8 @@ class Browser:
     def resize(self, e):
         self.canvas.pack(fill='both', expand=1)
         self.width, self.height = e.width, e.height
-        self.display_list = Layout(
-            self.nodes, e.width).display_list
-        self.draw()
+
+        self.build_and_draw_document()
 
     def mousewheel(self, e):
         scroll_delta = SCROLL_STEP * -e.delta
@@ -233,7 +333,13 @@ class Browser:
         #                   if view_source else body)
 
         self.nodes = HTMLParser(body).parse()
-        self.display_list = Layout(self.nodes, self.width).display_list
+        self.build_and_draw_document()
+
+    def build_and_draw_document(self):
+        self.document = DocumentLayout(self.nodes)
+        self.document.layout(self.width)
+        self.display_list = []
+        self.document.paint(self.display_list)
         self.draw()
 
 

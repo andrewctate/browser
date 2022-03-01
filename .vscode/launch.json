@@ -8,9 +8,9 @@
             "name": "Local Request",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "browser.py",
             "args": [
-                "file:///Users/andrewtate/workspace/browser/test.html"
+                "file:///Users/andrewtate/workspace/browser/test_pages/test_typesetting.html"
             ],
             "console": "integratedTerminal"
         },
