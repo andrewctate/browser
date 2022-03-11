@@ -1,3 +1,4 @@
+from typing import List
 from entities import chars_to_entity
 import tkinter
 import tkinter.font
@@ -72,6 +73,36 @@ def get_layout_mode(node: Text | Element) -> str:
         return "block"
 
 
+class DrawText:
+    def __init__(self, x1: int, y1: int, text: str, font: tkinter.font.Font):
+        self.top = y1
+        self.left = x1
+        self.bottom = y1 + font.metrics("linespace")
+        self.text = text
+        self.font = font
+
+    def execute(self, scroll: int, canvas: tkinter.Canvas):
+        canvas.create_text(self.left, self.top - scroll,
+                           text=self.text, font=self.font, anchor="nw")
+
+
+class DrawRect:
+    def __init__(self, x1, y1, x2, y2, color):
+        self.top = y1
+        self.left = x1
+        self.bottom = y2
+        self.right = x2
+        self.color = color
+
+    def execute(self, scroll: int, canvas: tkinter.Canvas):
+        canvas.create_rectangle(
+            self.left, self.top - scroll,
+            self.right, self.bottom - scroll,
+            width=0,
+            fill=self.color,
+        )
+
+
 class BlockLayout:
     def __init__(self, node, parent, previous) -> None:
         self.node = node
@@ -141,7 +172,15 @@ class InlineLayout:
         self.height = self.cursor_y - self.y
 
     def paint(self, display_list):
-        display_list.extend(self.display_list)
+        if isinstance(self.node, Element) and self.node.tag == "pre":
+            # Add background to pre tags. This needs to come before
+            # the words so it doesn't get drawn on top of them
+            x2, y2 = self.x + self.width, self.y + self.height
+            rect = DrawRect(self.x, self.y, x2, y2, "gray")
+            display_list.append(rect)
+
+        for x, y, word, font in self.display_list:
+            display_list.append(DrawText(x, y, word, font))
 
     def recurse(self, tree: Text | Element):
         if isinstance(tree, Text):
@@ -300,13 +339,15 @@ class Browser:
 
     def draw(self):
         self.canvas.delete("all")
-        for x, y, c, font in self.display_list:
-            if y > self.scroll + self.height:
+        for command in self.display_list:
+            if command.top > self.scroll + self.height:
+                # falls below the viewport
                 continue
-            if y + VSTEP < self.scroll:
+            if command.bottom + VSTEP < self.scroll:
+                # falls above the viewport
                 continue
-            self.canvas.create_text(
-                x, y - self.scroll, text=c, font=font, anchor="nw")
+
+            command.execute(self.scroll, self.canvas)
 
     def load(self, url: str):
         view_source = url.startswith("view-source:")
@@ -324,7 +365,7 @@ class Browser:
     def build_and_draw_document(self):
         self.document = DocumentLayout(only_body(self.nodes))
         self.document.layout(self.width)
-        self.display_list = []
+        self.display_list: List[DrawRect | DrawText] = []
         self.document.paint(self.display_list)
         self.draw()
 
