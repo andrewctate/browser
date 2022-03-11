@@ -1,4 +1,5 @@
 
+from typing import List
 from entities import entity_to_chars_dict
 from request import request_url
 
@@ -122,7 +123,7 @@ class HTMLParser:
             parent = self.unfinished[-1] if self.unfinished else None
             self.unfinished.append(Element(tag, attributes, parent))
 
-    def finish(self):
+    def finish(self) -> List[Text | Element]:
         if len(self.unfinished) == 0:
             self.add_tag("html")
         while len(self.unfinished) > 1:
@@ -136,6 +137,67 @@ def print_tree(node, indent=0):
     print(" " * indent, node)
     for child in node.children:
         print_tree(child, indent + 2)
+
+
+class CSSParser:
+    def __init__(self, s: str):
+        self.s = s
+        self.i = 0
+
+    def white_space(self):
+        while self.i < len(self.s) and self.s[self.i].isspace():
+            self.i += 1
+
+    def word(self):
+        beginning = self.i
+        while self.i < len(self.s):
+            if self.s[self.i].isalnum() or self.s[self.i] in "#-.%":
+                self.i += 1
+            else:
+                break
+
+        assert self.i > beginning
+        return self.s[beginning:self.i]
+
+    def literal(self, literal: str):
+        assert self.i < len(
+            self.s) and self.s[self.i] == literal, f'literal didn\'t match: {literal}'
+        self.i += 1
+
+    def pair(self):
+        prop = self.word()
+        self.white_space()
+        self.literal(':')
+        self.white_space()
+        value = self.word()
+
+        return prop.lower(), value
+
+    def body(self):
+        pairs = {}
+        while self.i < len(self.s):
+            try:
+                prop, value = self.pair()
+                pairs[prop] = value
+                self.white_space()
+                self.literal(';')
+                self.white_space()
+            except AssertionError:
+                why = self.ignore_until([";"])
+                if why == ";":
+                    self.literal(";")
+                    self.whitespace()
+                else:
+                    break
+
+        return pairs
+
+    def ignore_until(self, chars: List[str]):
+        while self.i < len(self.s):
+            if self.s[self.i] not in chars:
+                self.i += 1
+            else:
+                return self.s[self.i]
 
 
 if __name__ == '__main__':

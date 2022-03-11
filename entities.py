@@ -1,4 +1,4 @@
-# source https://www.w3schools.com/charsets/ref_html_entities_4.asp
+# sourced mostly from https://www.w3schools.com/charsets/ref_html_entities_4.asp
 entity_to_chars_dict = {
     "&amp;": "&",
     "&lt;": "<",
@@ -227,6 +227,7 @@ entity_to_chars_dict = {
     "&clubs;": "♣",
     "&hearts;": "♥",
     "&diams;": "♦",
+    "&quot;": "\"",
 }
 
 chars_to_entity_dict = {}

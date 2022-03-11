@@ -55,6 +55,16 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Testing",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args": [
+                "http://browser.engineering/styles.html"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Chinese Website",
             "type": "python",
             "request": "launch",
