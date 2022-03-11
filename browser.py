@@ -320,22 +320,19 @@ class Browser:
 
     def mousewheel(self, e):
         scroll_delta = SCROLL_STEP * -e.delta
-
-        # don't let the user scroll beyond the top
-        if self.scroll + scroll_delta < 0:
-            scroll_delta = 0
-
-        self.scroll += scroll_delta
-        self.draw()
+        if scroll_delta > 0:
+            self.scrolldown(e)
+        elif scroll_delta < 0:
+            self.scrollup(e)
 
     def scrolldown(self, e):
-        self.scroll += SCROLL_STEP
+        max_y = self.document.height - self.height
+        self.scroll = min(self.scroll + SCROLL_STEP, max_y)
         self.draw()
 
     def scrollup(self, e):
-        if self.scroll > 0:
-            self.scroll -= SCROLL_STEP
-            self.draw()
+        self.scroll = max(self.scroll - SCROLL_STEP, 0)
+        self.draw()
 
     def draw(self):
         self.canvas.delete("all")
