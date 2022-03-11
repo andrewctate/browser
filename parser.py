@@ -1,6 +1,10 @@
 
-from entities import entities
+from entities import entity_to_chars_dict
 from request import request_url
+
+
+def only_body(root):
+    return root.children[1]
 
 
 class Element:
@@ -16,8 +20,8 @@ class Element:
 
 class Text:
     def __init__(self, text: str, parent: Element):
-        for entity in entities:
-            text = text.replace(entity, entities[entity])
+        for entity in entity_to_chars_dict:
+            text = text.replace(entity, entity_to_chars_dict[entity])
         self.text = text
         self.children = []
         self.parent = parent

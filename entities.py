@@ -1,5 +1,5 @@
 # source https://www.w3schools.com/charsets/ref_html_entities_4.asp
-entities = {
+entity_to_chars_dict = {
     "&amp;": "&",
     "&lt;": "<",
     "&gt;": ">",
@@ -228,3 +228,13 @@ entities = {
     "&hearts;": "♥",
     "&diams;": "♦",
 }
+
+chars_to_entity_dict = {}
+for key, val in entity_to_chars_dict.items():
+    chars_to_entity_dict[val] = key
+
+
+def chars_to_entity(chars: str):
+    if chars in chars_to_entity_dict:
+        return chars_to_entity_dict[chars]
+    return chars

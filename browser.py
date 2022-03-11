@@ -1,7 +1,7 @@
-from entities import entities
+from entities import chars_to_entity
 import tkinter
 import tkinter.font
-from parser import Element, HTMLParser, Text
+from parser import Element, HTMLParser, Text, only_body
 from request import request_url
 
 
@@ -16,24 +16,10 @@ def get_font(size, weight, slant):
     return FONTS[key]
 
 
-def get_entity_chars(entity: str):
-    if entity in entities:
-        return entities[entity]
-    return entity
-
-
-def only_body(root):
-    return root.children[1]
-
-
 def escape_html(html: str):
-    char_to_entity = {}
-    for key, val in entities.items():
-        char_to_entity[val] = key
-
     escaped = ''
     for char in html:
-        escaped += char_to_entity[char] if char in char_to_entity else char
+        escaped += chars_to_entity(char)
 
     return escaped
 
@@ -336,7 +322,7 @@ class Browser:
         self.build_and_draw_document()
 
     def build_and_draw_document(self):
-        self.document = DocumentLayout(self.nodes)
+        self.document = DocumentLayout(only_body(self.nodes))
         self.document.layout(self.width)
         self.display_list = []
         self.document.paint(self.display_list)
