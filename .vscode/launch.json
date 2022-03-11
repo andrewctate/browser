@@ -35,6 +35,16 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "View Source",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args": [
+                "view-source:https://example.org/"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Remote Request (Redirect)",
             "type": "python",
             "request": "launch",

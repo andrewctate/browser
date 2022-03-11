@@ -25,7 +25,7 @@ def escape_html(html: str):
 
 
 def build_view_source_html(source: str):
-    return f"<body>{escape_html(source)}</body>"
+    return f"<html><head></head><body>{escape_html(source)}</body></html>"
 
 
 HSTEP, VSTEP = 13, 18
@@ -315,8 +315,8 @@ class Browser:
 
         headers, body = request_url(url)
 
-        # self.tokens = lex(build_view_source_html(body)
-        #                   if view_source else body)
+        if view_source:
+            body = build_view_source_html(body)
 
         self.nodes = HTMLParser(body).parse()
         self.build_and_draw_document()
