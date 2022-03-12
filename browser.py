@@ -1,10 +1,12 @@
 from typing import List
-from entities import chars_to_entity
 import tkinter
 import tkinter.font
-from layout import VSTEP, DocumentLayout, DrawRect, DrawText
-from dom import Text, Element, HTMLParser, CSSParser, only_body
+
 from request import request_url
+from entities import chars_to_entity
+from layout import VSTEP, DocumentLayout, DrawRect, DrawText
+from css import DescendantSelector, TagSelector, CSSParser
+from dom import Text, Element, HTMLParser, only_body
 
 
 def escape_html(html: str):
@@ -19,16 +21,24 @@ def build_view_source_html(source: str):
     return f"<html><head></head><body>{escape_html(source)}</body></html>"
 
 
-def style(node: Text | Element):
+def style(node: Text | Element, rules: List[tuple[TagSelector | DescendantSelector, dict]]):
     node.style = {}
 
+    # apply global CSS rules
+    for selector, body in rules:
+        if not selector.matches(node):
+            continue
+        for property, value in body.items():
+            node.style[property] = value
+
+    # apply inline styles
     if isinstance(node, Element) and "style" in node.attributes:
         pairs = CSSParser(node.attributes["style"]).body()
         for property, value in pairs.items():
             node.style[property] = value
 
     for child in node.children:
-        style(child)
+        style(child, rules)
 
 
 SCROLL_STEP = 100
@@ -42,6 +52,9 @@ class Browser:
             self.window, width=self.width, height=self.height)
         self.canvas.pack()
         self.scroll = 0
+
+        with open("browser.css") as f:
+            self.default_style_sheet = CSSParser(f.read()).parse()
 
         self.window.bind("<Down>", self.scrolldown)
         self.window.bind("<Up>", self.scrollup)
@@ -93,7 +106,8 @@ class Browser:
             body = build_view_source_html(body)
 
         self.nodes = HTMLParser(body).parse()
-        style(self.nodes)
+        rules = self.default_style_sheet.copy()
+        style(self.nodes, rules)
         self.build_and_draw_document()
 
     def build_and_draw_document(self):
