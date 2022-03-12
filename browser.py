@@ -21,22 +21,63 @@ def build_view_source_html(source: str):
     return f"<html><head></head><body>{escape_html(source)}</body></html>"
 
 
-# TODO - should this live in the nodes themselves?
+INHERITED_PROPERTIES = {
+    "font-size": "16px",
+    "font-style": "normal",
+    "font-weight": "normal",
+    "color": "black",
+}
+
+
+def compute_style(node, property, value):
+    if property == "font-size":
+        if value.endswith("px"):
+            return value
+        elif value.endswith("%"):
+            if node.parent:
+                parent_font_size = node.parent.style["font-size"]
+            else:
+                parent_font_size = INHERITED_PROPERTIES["font-size"]
+
+            # have to resolve percentage to a pixel value since font-size is a "computed style"
+            # see https://www.w3.org/TR/CSS2/cascade.html#computed-value for more info
+            node_pct = float(value[:-1]) / 100
+            parent_px = float(parent_font_size[:-2])
+            return str(node_pct * parent_px) + "px"
+        else:
+            return None
+    else:
+        return value
+
+
+def apply_rule_body(rule_body, node):
+    for property, value in rule_body.items():
+        computed_value = compute_style(node, property, value)
+        if not computed_value:
+            continue
+        node.style[property] = value
+
+
 def style(node: Text | Element, rules: List[tuple[TagSelector | DescendantSelector, dict]]):
+    # TODO - should this function be invoked from the nodes themselves?
     node.style = {}
+
+    # inherit properties
+    for property, default_value in INHERITED_PROPERTIES.items():
+        if node.parent:
+            node.style[property] = node.parent.style[property]
+        else:
+            node.style[property] = default_value
 
     # apply global CSS rules
     for selector, body in rules:
-        if not selector.matches(node):
-            continue
-        for property, value in body.items():
-            node.style[property] = value
+        if selector.matches(node):
+            apply_rule_body(body, node)
 
     # apply inline styles
     if isinstance(node, Element) and "style" in node.attributes:
-        pairs = CSSParser(node.attributes["style"]).body()
-        for property, value in pairs.items():
-            node.style[property] = value
+        body = CSSParser(node.attributes["style"]).body()
+        apply_rule_body(body, node)
 
     for child in node.children:
         style(child, rules)
