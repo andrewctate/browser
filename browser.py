@@ -3,7 +3,7 @@ from entities import chars_to_entity
 import tkinter
 import tkinter.font
 from layout import VSTEP, DocumentLayout, DrawRect, DrawText
-from parser import Text, Element, HTMLParser, CSSParser, only_body
+from dom import Text, Element, HTMLParser, CSSParser, only_body
 from request import request_url
 
 

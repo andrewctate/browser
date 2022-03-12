@@ -1,4 +1,4 @@
-from parser import Text, Element
+from dom import Text, Element
 import tkinter
 
 HSTEP, VSTEP = 13, 18

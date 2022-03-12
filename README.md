@@ -21,7 +21,7 @@
 
 ### Elements
 
-- Constructs DOM nodes from HTML
+- Parses HTML to construct DOM nodes
 - Supports `block` and `inline` elements in the layout tree
 
 ### Styling
