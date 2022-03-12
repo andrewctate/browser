@@ -103,7 +103,7 @@ class Browser:
         self.width, self.height = initial_width, initial_height
         self.window = tkinter.Tk()
         self.canvas = tkinter.Canvas(
-            self.window, width=self.width, height=self.height)
+            self.window, width=self.width, height=self.height, bg="white")
         self.canvas.pack()
         self.scroll = 0
 

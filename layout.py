@@ -56,16 +56,17 @@ def get_layout_mode(node: Text | Element) -> str:
 
 
 class DrawText:
-    def __init__(self, x1: int, y1: int, text: str, font: tkinter.font.Font):
+    def __init__(self, x1: int, y1: int, text: str, font: tkinter.font.Font, color: str):
         self.top = y1
         self.left = x1
         self.bottom = y1 + font.metrics("linespace")
         self.text = text
         self.font = font
+        self.color = color
 
     def execute(self, scroll: int, canvas: tkinter.Canvas):
         canvas.create_text(self.left, self.top - scroll,
-                           text=self.text, font=self.font, anchor="nw")
+                           text=self.text, font=self.font, fill=self.color, anchor="nw")
 
 
 class DrawRect:
@@ -161,8 +162,8 @@ class InlineLayout:
             rect = DrawRect(self.x, self.y, x2, y2, bgcolor)
             display_list.append(rect)
 
-        for x, y, word, font in self.display_list:
-            display_list.append(DrawText(x, y, word, font))
+        for x, y, word, font, color in self.display_list:
+            display_list.append(DrawText(x, y, word, font, color))
 
     def recurse(self, tree: Text | Element):
         if isinstance(tree, Text):
@@ -204,16 +205,22 @@ class InlineLayout:
             self.flush()
             self.cursor_y += PSTEP
 
-    def text(self, tok):
-        font = get_font(
-            self.size,
-            self.weight,
-            self.style,
-        )
+    def text(self, node):
+        weight = node.style["font-weight"]
+        style = node.style["font-style"]
+        color = node.style["color"]
+
+        # translate CSS "normal" to TK "roman"
+        if style == "normal":
+            style = "roman"
+
+        # convert CSS pixels to TK points
+        size = int(float(node.style["font-size"][:-2]) * .75)
+        font = get_font(size, weight, style)
 
         right_margin = self.width - HSTEP
 
-        for word in tok.text.split():
+        for word in node.text.split():
             w = font.measure(word)
             if self.cursor_x + w > right_margin:
                 before_hyphen, after_hyphen = maybe_hyphenate(
@@ -222,34 +229,36 @@ class InlineLayout:
                 if before_hyphen != '':
                     # we had room to put some of the word on this line
                     self.line.append(
-                        (self.cursor_x, before_hyphen + '-', font, self.is_super))
+                        (self.cursor_x, before_hyphen + '-', font, color, self.is_super))
                     word = after_hyphen
 
                 self.flush()
 
             self.line.append(
-                (self.cursor_x, word, font, self.is_super))
+                (self.cursor_x, word, font, color, self.is_super))
             self.cursor_x += w + font.measure(" ")
 
     def flush(self):
         if not self.line:
             return
-        metrics = [font.metrics() for x, word, font, is_super in self.line]
+        metrics = [font.metrics()
+                   for x, word, font, color, is_super in self.line]
         max_ascent = max([metric["ascent"] for metric in metrics])
         baseline = self.cursor_y + 1.25 * max_ascent
         super_ascent_adjustment = None
 
-        for i, (x, word, font, is_super) in enumerate(self.line):
+        for i, (x, word, font, color, is_super) in enumerate(self.line):
             ascent_adjustment = font.metrics("ascent")
-            if is_super and i > 0:
-                if not self.line[i-1][3]:
-                    # record for following super words
-                    super_ascent_adjustment = self.line[i -
-                                                        1][2].metrics("ascent")
-                ascent_adjustment = super_ascent_adjustment
+            # TODO - reenable super
+            # if is_super and i > 0:
+            #     if not self.line[i-1][3]:
+            #         # record for following super words
+            #         super_ascent_adjustment = self.line[i -
+            #                                             1][2].metrics("ascent")
+            #     ascent_adjustment = super_ascent_adjustment
 
             y = baseline - ascent_adjustment
-            self.display_list.append((x, y, word, font))
+            self.display_list.append((x, y, word, font, color))
 
         self.cursor_x = self.x
         self.line = []
