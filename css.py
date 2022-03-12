@@ -5,6 +5,7 @@ from dom import Element
 class TagSelector:
     def __init__(self, tag: str):
         self.tag = tag
+        self.priority = 1
 
     def __repr__(self):
         return self.tag
@@ -17,6 +18,7 @@ class DescendantSelector:
     def __init__(self, ancestor, descendant: TagSelector):
         self.ancestor = ancestor
         self.descendant = descendant
+        self.priority = ancestor.priority + descendant.priority
 
     def __repr__(self):
         repr = self.descendant.tag
@@ -131,6 +133,13 @@ class CSSParser:
         return rules
 
 
+def print_rules(rules: List[tuple[TagSelector | DescendantSelector, dict]]):
+    for selector, rule in rules:
+        print(selector)
+        for prop, val in rule.items():
+            print(f'\t{prop}: {val}')
+
+
 if __name__ == '__main__':
     css = '''
     a {
@@ -143,8 +152,4 @@ if __name__ == '__main__':
     }
     '''
     rules = CSSParser(css).parse()
-
-    for selector, props in rules:
-        print(selector)
-        for prop, val in props.items():
-            print(f'\t{prop}: {val}')
+    print_rules(rules)

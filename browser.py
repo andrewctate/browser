@@ -2,10 +2,10 @@ from typing import List
 import tkinter
 import tkinter.font
 
-from request import request_url
+from request import request_url, resolve_url
 from entities import chars_to_entity
 from layout import VSTEP, DocumentLayout, DrawRect, DrawText
-from css import DescendantSelector, TagSelector, CSSParser
+from css import DescendantSelector, TagSelector, CSSParser, print_rules
 from dom import Text, Element, HTMLParser, only_body
 
 
@@ -21,6 +21,7 @@ def build_view_source_html(source: str):
     return f"<html><head></head><body>{escape_html(source)}</body></html>"
 
 
+# TODO - should this live in the nodes themselves?
 def style(node: Text | Element, rules: List[tuple[TagSelector | DescendantSelector, dict]]):
     node.style = {}
 
@@ -39,6 +40,18 @@ def style(node: Text | Element, rules: List[tuple[TagSelector | DescendantSelect
 
     for child in node.children:
         style(child, rules)
+
+
+def cascade_priority(rule):
+    selector, body = rule
+    return selector.priority
+
+
+def tree_to_list(tree, list):
+    list.append(tree)
+    for child in tree.children:
+        tree_to_list(child, list)
+    return list
 
 
 SCROLL_STEP = 100
@@ -106,8 +119,27 @@ class Browser:
             body = build_view_source_html(body)
 
         self.nodes = HTMLParser(body).parse()
+
+        stylesheet_links = [node.attributes['href']
+                            for node in tree_to_list(self.nodes, [])
+                            if isinstance(node, Element)
+                            and node.tag == 'link'
+                            and 'href' in node.attributes
+                            and node.attributes.get("rel") == "stylesheet"]
+
         rules = self.default_style_sheet.copy()
-        style(self.nodes, rules)
+
+        for link in stylesheet_links:
+            try:
+                header, body = request_url(resolve_url(link, url))
+            except:
+                continue
+            rules.extend(CSSParser(body).parse())
+
+        # Note that before sorting rules, it is in file order. Since Python’s sorted function keeps the
+        # relative order of things when possible, file order thus acts as a tie breaker, as it should.
+        # See https://www.w3.org/TR/2011/REC-CSS2-20110607/cascade.html#cascading-order
+        style(self.nodes, sorted(rules, key=cascade_priority))
         self.build_and_draw_document()
 
     def build_and_draw_document(self):
