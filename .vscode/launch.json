@@ -18,7 +18,7 @@
             "name": "Remote Request",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "browser.py",
             "args": [
                 "http://example.org/"
             ],
@@ -28,7 +28,7 @@
             "name": "Remote Request (Secure)",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "browser.py",
             "args": [
                 "https://example.org/"
             ],
@@ -38,7 +38,7 @@
             "name": "View Source",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "browser.py",
             "args": [
                 "view-source:https://example.org/"
             ],
@@ -48,7 +48,7 @@
             "name": "Remote Request (Redirect)",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "browser.py",
             "args": [
                 "http://browser.engineering/redirect"
             ],
@@ -58,7 +58,7 @@
             "name": "Testing",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "browser.py",
             "args": [
                 "http://browser.engineering/styles.html"
             ],
@@ -68,7 +68,7 @@
             "name": "Chinese Website",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "browser.py",
             "args": [
                 "https://www.zggdwx.com/xiyou/1.html"
             ],

@@ -55,7 +55,7 @@ def apply_rule_body(rule_body, node):
         computed_value = compute_style(node, property, value)
         if not computed_value:
             continue
-        node.style[property] = value
+        node.style[property] = computed_value
 
 
 def style(node: Text | Element, rules: List[tuple[TagSelector | DescendantSelector, dict]]):
