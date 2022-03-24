@@ -137,7 +137,6 @@ class InlineLayout:
         self.weight = "normal"
         self.style = "roman"
         self.size = 16
-        self.is_super = False
 
         # position according to family
         self.width = self.parent.width
@@ -169,41 +168,15 @@ class InlineLayout:
         if isinstance(tree, Text):
             self.text(tree)
         else:
-            self.open_tag(tree.tag)
+            if tree.tag == "br":
+                self.flush()
+
             for child in tree.children:
                 self.recurse(child)
-            self.close_tag(tree.tag)
 
-    def open_tag(self, tag):
-        if tag == "i":
-            self.style = "italic"
-        elif tag == "b":
-            self.weight = "bold"
-        elif tag == "small":
-            self.size -= 2
-        elif tag == "big":
-            self.size += 4
-        elif tag == "sup":
-            self.is_super = True
-            self.size //= 2
-        elif tag == "br":
-            self.flush()
-
-    def close_tag(self, tag):
-        if tag == "i":
-            self.style = "roman"
-        elif tag == "b":
-            self.weight = "normal"
-        elif tag == "small":
-            self.size += 2
-        elif tag == "big":
-            self.size -= 4
-        elif tag == "sup":
-            self.is_super = False
-            self.size *= 2
-        elif tag == "p":
-            self.flush()
-            self.cursor_y += PSTEP
+            if tree.tag == 'p':
+                self.flush()
+                self.cursor_y += PSTEP
 
     def text(self, node):
         weight = node.style["font-weight"]
@@ -229,34 +202,25 @@ class InlineLayout:
                 if before_hyphen != '':
                     # we had room to put some of the word on this line
                     self.line.append(
-                        (self.cursor_x, before_hyphen + '-', font, color, self.is_super))
+                        (self.cursor_x, before_hyphen + '-', font, color, ))
                     word = after_hyphen
 
                 self.flush()
 
             self.line.append(
-                (self.cursor_x, word, font, color, self.is_super))
+                (self.cursor_x, word, font, color, ))
             self.cursor_x += w + font.measure(" ")
 
     def flush(self):
         if not self.line:
             return
         metrics = [font.metrics()
-                   for x, word, font, color, is_super in self.line]
+                   for x, word, font, color in self.line]
         max_ascent = max([metric["ascent"] for metric in metrics])
         baseline = self.cursor_y + 1.25 * max_ascent
-        super_ascent_adjustment = None
 
-        for i, (x, word, font, color, is_super) in enumerate(self.line):
+        for i, (x, word, font, color) in enumerate(self.line):
             ascent_adjustment = font.metrics("ascent")
-            # TODO - reenable super
-            # if is_super and i > 0:
-            #     if not self.line[i-1][3]:
-            #         # record for following super words
-            #         super_ascent_adjustment = self.line[i -
-            #                                             1][2].metrics("ascent")
-            #     ascent_adjustment = super_ascent_adjustment
-
             y = baseline - ascent_adjustment
             self.display_list.append((x, y, word, font, color))
 

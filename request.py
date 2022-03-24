@@ -120,7 +120,8 @@ def request_remote(url: str):
             assert host, "You must provide a host to connect to!"
             assert path, "You must provide a path to request!"
 
-            response = fetch_response(scheme, host, port, path)
+            response = fetch_response(
+                scheme, host, port, path, accept_compressed=False)
 
         status, explanation, headers, body = extract_response_info(
             response)
