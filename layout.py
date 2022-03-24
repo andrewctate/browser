@@ -123,6 +123,23 @@ class BlockLayout:
             child.paint(display_list)
 
 
+class LineLayout:
+    def __init__(self, node, parent, previous):
+        self.node = node
+        self.parent = parent
+        self.previous = previous
+        self.children = []
+
+
+class TextLayout:
+    def __init__(self, node, word, parent, previous):
+        self.node = node
+        self.word = word
+        self.children = []
+        self.parent = parent
+        self.previous = previous
+
+
 class InlineLayout:
     def __init__(self, node, parent, previous) -> None:
         self.node = node
@@ -132,8 +149,6 @@ class InlineLayout:
 
     def layout(self) -> None:
         # setup defaults
-        self.line = []
-        self.display_list = []
         self.weight = "normal"
         self.style = "roman"
         self.size = 16
@@ -146,12 +161,14 @@ class InlineLayout:
         else:
             self.y = self.parent.y
         self.cursor_x = self.x
-        self.cursor_y = self.y
 
+        self.new_line()
         self.recurse(self.node)
-        self.flush()
 
-        self.height = self.cursor_y - self.y
+        for line in self.children:
+            line.layout()
+
+        self.height = sum([line.height for line in self.children])
 
     def paint(self, display_list):
         bgcolor = self.node.style.get("background-color",
@@ -161,8 +178,8 @@ class InlineLayout:
             rect = DrawRect(self.x, self.y, x2, y2, bgcolor)
             display_list.append(rect)
 
-        for x, y, word, font, color in self.display_list:
-            display_list.append(DrawText(x, y, word, font, color))
+        for child in self.children:
+            child.paint(display_list)
 
     def recurse(self, tree: Text | Element):
         if isinstance(tree, Text):
@@ -201,33 +218,46 @@ class InlineLayout:
 
                 if before_hyphen != '':
                     # we had room to put some of the word on this line
-                    self.line.append(
-                        (self.cursor_x, before_hyphen + '-', font, color, ))
+                    # TODO deduplicate this logic!
+                    line = self.children[-1]
+                    text = TextLayout(node, word, line, self.previous_word)
+                    line.children.append(text)
+                    self.previous_word = text
+
                     word = after_hyphen
 
-                self.flush()
+                self.new_line()
 
-            self.line.append(
-                (self.cursor_x, word, font, color, ))
+            line = self.children[-1]
+            text = TextLayout(node, word, line, self.previous_word)
+            line.children.append(text)
+            self.previous_word = text
             self.cursor_x += w + font.measure(" ")
 
-    def flush(self):
-        if not self.line:
-            return
-        metrics = [font.metrics()
-                   for x, word, font, color in self.line]
-        max_ascent = max([metric["ascent"] for metric in metrics])
-        baseline = self.cursor_y + 1.25 * max_ascent
-
-        for i, (x, word, font, color) in enumerate(self.line):
-            ascent_adjustment = font.metrics("ascent")
-            y = baseline - ascent_adjustment
-            self.display_list.append((x, y, word, font, color))
-
+    def new_line(self):
+        self.previous_word = None
         self.cursor_x = self.x
-        self.line = []
-        max_descent = max([metric["descent"] for metric in metrics])
-        self.cursor_y = baseline + 1.25 * max_descent
+        last_line = self.children[-1] if self.children else None
+        new_line = LineLayout(self.node, self, last_line)
+        self.children.append(new_line)
+
+    # def flush(self):
+    #     if not self.line:
+    #         return
+    #     metrics = [font.metrics()
+    #                for x, word, font, color in self.line]
+    #     max_ascent = max([metric["ascent"] for metric in metrics])
+    #     baseline = self.cursor_y + 1.25 * max_ascent
+
+    #     for i, (x, word, font, color) in enumerate(self.line):
+    #         ascent_adjustment = font.metrics("ascent")
+    #         y = baseline - ascent_adjustment
+    #         self.display_list.append((x, y, word, font, color))
+
+    #     self.cursor_x = self.x
+    #     self.line = []
+    #     max_descent = max([metric["descent"] for metric in metrics])
+    #     self.cursor_y = baseline + 1.25 * max_descent
 
 
 class DocumentLayout:
