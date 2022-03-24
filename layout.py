@@ -130,6 +130,39 @@ class LineLayout:
         self.previous = previous
         self.children = []
 
+    def __repr__(self):
+        repr = ''
+        for word in self.children:
+            repr += str(word) + ' '
+        return f'LineLayout({repr})'
+
+    def layout(self):
+        self.width = self.parent.width
+        self.x = self.parent.x
+
+        if self.previous:
+            self.y = self.previous.y + self.previous.height
+        else:
+            self.y = self.parent.y
+
+        for word in self.children:
+            word.layout()
+
+        max_ascent = max([word.font.metrics("ascent")
+                          for word in self.children])
+        baseline = self.y + 1.25 * max_ascent
+        for word in self.children:
+            word.y = baseline - word.font.metrics("ascent")
+
+        max_descent = max([word.font.metrics("descent")
+                           for word in self.children])
+
+        self.height = 1.25 * (max_ascent + max_descent)
+
+    def paint(self, display_list):
+        for child in self.children:
+            child.paint(display_list)
+
 
 class TextLayout:
     def __init__(self, node, word, parent, previous):
@@ -138,6 +171,32 @@ class TextLayout:
         self.children = []
         self.parent = parent
         self.previous = previous
+
+    def __repr__(self):
+        return f'TextLayout({self.word})'
+
+    def layout(self):
+        weight = self.node.style["font-weight"]
+        style = self.node.style["font-style"]
+        if style == "normal":
+            style = "roman"
+        size = int(float(self.node.style["font-size"][:-2]) * .75)
+        self.font = get_font(size, weight, style)
+
+        self.width = self.font.measure(self.word)
+
+        if self.previous:
+            space = self.previous.font.measure(" ")
+            self.x = self.previous.x + space + self.previous.width
+        else:
+            self.x = self.parent.x
+
+        self.height = self.font.metrics("linespace")
+
+    def paint(self, display_list):
+        color = self.node.style["color"]
+        display_list.append(
+            DrawText(self.x, self.y, self.word, self.font, color))
 
 
 class InlineLayout:
@@ -185,20 +244,18 @@ class InlineLayout:
         if isinstance(tree, Text):
             self.text(tree)
         else:
-            if tree.tag == "br":
-                self.flush()
+            # if tree.tag == "br":
+            #     self.new_line()
 
             for child in tree.children:
                 self.recurse(child)
 
-            if tree.tag == 'p':
-                self.flush()
-                self.cursor_y += PSTEP
+            # if tree.tag == 'p':
+            #     self.new_line()
 
     def text(self, node):
         weight = node.style["font-weight"]
         style = node.style["font-style"]
-        color = node.style["color"]
 
         # translate CSS "normal" to TK "roman"
         if style == "normal":
@@ -240,24 +297,6 @@ class InlineLayout:
         last_line = self.children[-1] if self.children else None
         new_line = LineLayout(self.node, self, last_line)
         self.children.append(new_line)
-
-    # def flush(self):
-    #     if not self.line:
-    #         return
-    #     metrics = [font.metrics()
-    #                for x, word, font, color in self.line]
-    #     max_ascent = max([metric["ascent"] for metric in metrics])
-    #     baseline = self.cursor_y + 1.25 * max_ascent
-
-    #     for i, (x, word, font, color) in enumerate(self.line):
-    #         ascent_adjustment = font.metrics("ascent")
-    #         y = baseline - ascent_adjustment
-    #         self.display_list.append((x, y, word, font, color))
-
-    #     self.cursor_x = self.x
-    #     self.line = []
-    #     max_descent = max([metric["descent"] for metric in metrics])
-    #     self.cursor_y = baseline + 1.25 * max_descent
 
 
 class DocumentLayout:
