@@ -238,21 +238,19 @@ class InlineLayout:
 
                 if before_hyphen != '':
                     # we had room to put some of the word on this line
-                    # TODO deduplicate this logic!
-                    line = self.children[-1]
-                    text = TextLayout(node, word, line, self.previous_word)
-                    line.children.append(text)
-                    self.previous_word = text
-
+                    self.add_text_to_current_line(before_hyphen + '-', node)
                     word = after_hyphen
 
                 self.new_line()
 
-            line = self.children[-1]
-            text = TextLayout(node, word, line, self.previous_word)
-            line.children.append(text)
-            self.previous_word = text
+            self.add_text_to_current_line(word, node)
             self.cursor_x += w + font.measure(" ")
+
+    def add_text_to_current_line(self, text, node):
+        line = self.children[-1]
+        text = TextLayout(node, text, line, self.previous_word)
+        line.children.append(text)
+        self.previous_word = text
 
     def new_line(self):
         self.previous_word = None
