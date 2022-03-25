@@ -110,6 +110,8 @@ class Browser:
         with open("browser.css") as f:
             self.default_style_sheet = CSSParser(f.read()).parse()
 
+        # wait for TK paint, then bind the event listeners
+        self.window.wait_visibility(self.canvas)
         self.window.bind("<Down>", self.scrolldown)
         self.window.bind("<Up>", self.scrollup)
         self.window.bind("<MouseWheel>", self.mousewheel)
@@ -118,7 +120,6 @@ class Browser:
     def resize(self, e):
         self.canvas.pack(fill='both', expand=1)
         self.width, self.height = e.width, e.height
-
         self.build_and_draw_document()
 
     def mousewheel(self, e):

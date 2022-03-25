@@ -207,8 +207,8 @@ class InlineLayout:
         if isinstance(tree, Text):
             self.text(tree)
         else:
-            # if tree.tag == "br":
-            #     self.new_line()
+            if tree.tag == "br":
+                self.new_line()
 
             for child in tree.children:
                 self.recurse(child)
@@ -228,11 +228,12 @@ class InlineLayout:
         size = int(float(node.style["font-size"][:-2]) * .75)
         font = get_font(size, weight, style)
 
-        right_margin = self.width - HSTEP
+        # TODO - figure out why this is funky
+        right_margin = self.width
 
         for word in node.text.split():
-            w = font.measure(word)
-            if self.cursor_x + w > right_margin:
+            word_width = font.measure(word)
+            if self.cursor_x + word_width > right_margin:
                 before_hyphen, after_hyphen = maybe_hyphenate(
                     word, lambda text: self.cursor_x + font.measure(text) > right_margin)
 
@@ -244,7 +245,7 @@ class InlineLayout:
                 self.new_line()
 
             self.add_text_to_current_line(word, node)
-            self.cursor_x += w + font.measure(" ")
+            self.cursor_x += word_width + font.measure(" ")
 
     def add_text_to_current_line(self, text, node):
         line = self.children[-1]
