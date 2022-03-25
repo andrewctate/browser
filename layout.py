@@ -86,41 +86,39 @@ class DrawRect:
         )
 
 
-class BlockLayout:
-    def __init__(self, node, parent, previous) -> None:
+class TextLayout:
+    def __init__(self, node, word, parent, previous):
         self.node = node
+        self.word = word
+        self.children = []
         self.parent = parent
         self.previous = previous
-        self.children = []
+
+    def __repr__(self):
+        return f'TextLayout({self.word})'
 
     def layout(self):
-        self.width = self.parent.width
-        self.x = self.parent.x
+        weight = self.node.style["font-weight"]
+        style = self.node.style["font-style"]
+        if style == "normal":
+            style = "roman"
+        size = int(float(self.node.style["font-size"][:-2]) * .75)
+        self.font = get_font(size, weight, style)
+
+        self.width = self.font.measure(self.word)
+
         if self.previous:
-            self.y = self.previous.y + self.previous.height
+            space = self.previous.font.measure(" ")
+            self.x = self.previous.x + space + self.previous.width
         else:
-            self.y = self.parent.y
+            self.x = self.parent.x
 
-        previous = None
-        for child in self.node.children:
-            if get_layout_mode(child) == "inline":
-                next = InlineLayout(child, self, previous)
-            else:
-                next = BlockLayout(child, self, previous)
-
-            self.children.append(next)
-            previous = next
-
-        for child in self.children:
-            child.layout()
-
-        # height computation must happen after the children are laid out
-        # since the parent should be tall enough to fit them all
-        self.height = sum([child.height for child in self.children])
+        self.height = self.font.metrics("linespace")
 
     def paint(self, display_list):
-        for child in self.children:
-            child.paint(display_list)
+        color = self.node.style["color"]
+        display_list.append(
+            DrawText(self.x, self.y, self.word, self.font, color))
 
 
 class LineLayout:
@@ -162,41 +160,6 @@ class LineLayout:
     def paint(self, display_list):
         for child in self.children:
             child.paint(display_list)
-
-
-class TextLayout:
-    def __init__(self, node, word, parent, previous):
-        self.node = node
-        self.word = word
-        self.children = []
-        self.parent = parent
-        self.previous = previous
-
-    def __repr__(self):
-        return f'TextLayout({self.word})'
-
-    def layout(self):
-        weight = self.node.style["font-weight"]
-        style = self.node.style["font-style"]
-        if style == "normal":
-            style = "roman"
-        size = int(float(self.node.style["font-size"][:-2]) * .75)
-        self.font = get_font(size, weight, style)
-
-        self.width = self.font.measure(self.word)
-
-        if self.previous:
-            space = self.previous.font.measure(" ")
-            self.x = self.previous.x + space + self.previous.width
-        else:
-            self.x = self.parent.x
-
-        self.height = self.font.metrics("linespace")
-
-    def paint(self, display_list):
-        color = self.node.style["color"]
-        display_list.append(
-            DrawText(self.x, self.y, self.word, self.font, color))
 
 
 class InlineLayout:
@@ -297,6 +260,43 @@ class InlineLayout:
         last_line = self.children[-1] if self.children else None
         new_line = LineLayout(self.node, self, last_line)
         self.children.append(new_line)
+
+
+class BlockLayout:
+    def __init__(self, node, parent, previous) -> None:
+        self.node = node
+        self.parent = parent
+        self.previous = previous
+        self.children = []
+
+    def layout(self):
+        self.width = self.parent.width
+        self.x = self.parent.x
+        if self.previous:
+            self.y = self.previous.y + self.previous.height
+        else:
+            self.y = self.parent.y
+
+        previous = None
+        for child in self.node.children:
+            if get_layout_mode(child) == "inline":
+                next = InlineLayout(child, self, previous)
+            else:
+                next = BlockLayout(child, self, previous)
+
+            self.children.append(next)
+            previous = next
+
+        for child in self.children:
+            child.layout()
+
+        # height computation must happen after the children are laid out
+        # since the parent should be tall enough to fit them all
+        self.height = sum([child.height for child in self.children])
+
+    def paint(self, display_list):
+        for child in self.children:
+            child.paint(display_list)
 
 
 class DocumentLayout:
