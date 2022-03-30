@@ -117,6 +117,30 @@ class Browser:
         self.window.bind("<MouseWheel>", self.mousewheel)
         self.window.bind("<Configure>", self.resize)
 
+        self.window.bind("<Button-1>", self.click)
+
+    def click(self, e):
+        x, y = e.x, e.y
+        y += self.scroll
+
+        layouts_under_click = [layout for layout in tree_to_list(self.document, [])
+                               if layout.x <= x < layout.x + layout.width
+                               and layout.y <= y < layout.y + layout.height]
+
+        element = layouts_under_click[-1].node
+
+        if not element:
+            return
+
+        while element:
+            if isinstance(element, Text):
+                pass
+            elif element.tag == 'a':
+                href_url = resolve_url(element.attributes['href'], self.url)
+                self.load(href_url)
+
+            element = element.parent
+
     def resize(self, e):
         self.canvas.pack(fill='both', expand=1)
         self.width, self.height = e.width, e.height
@@ -155,6 +179,8 @@ class Browser:
         if view_source:
             _, url = url.split(':', 1)
 
+        self.url = url
+
         headers, body = request_url(url)
 
         if view_source:
@@ -182,6 +208,8 @@ class Browser:
         # relative order of things when possible, file order thus acts as a tie breaker, as it should.
         # See https://www.w3.org/TR/2011/REC-CSS2-20110607/cascade.html#cascading-order
         style(self.nodes, sorted(rules, key=cascade_priority))
+
+        self.scroll = 0
         self.build_and_draw_document()
 
     def build_and_draw_document(self):
