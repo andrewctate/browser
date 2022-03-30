@@ -143,6 +143,10 @@ class LineLayout:
         else:
             self.y = self.parent.y
 
+        if len(self.children) == 0:
+            self.height = 0
+            return
+
         for word in self.children:
             word.layout()
 
