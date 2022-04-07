@@ -98,29 +98,31 @@ def tree_to_list(tree, list):
 SCROLL_STEP = 100
 
 
-class Browser:
-    def __init__(self, initial_width: int, initial_height: int):
-        self.width, self.height = initial_width, initial_height
-        self.window = tkinter.Tk()
-        self.canvas = tkinter.Canvas(
-            self.window, width=self.width, height=self.height, bg="white")
-        self.canvas.pack()
-        self.scroll = 0
+class Tab:
+    def __init__(self, width: int, height: int):
+        self.set_dimensions(width, height)
 
         with open("browser.css") as f:
             self.default_style_sheet = CSSParser(f.read()).parse()
 
-        # wait for TK paint, then bind the event listeners
-        self.window.wait_visibility(self.canvas)
-        self.window.bind("<Down>", self.scrolldown)
-        self.window.bind("<Up>", self.scrollup)
-        self.window.bind("<MouseWheel>", self.mousewheel)
-        self.window.bind("<Configure>", self.resize)
+    def mousewheel(self, delta: int):
+        scroll_delta = SCROLL_STEP * -delta
+        if scroll_delta > 0:
+            self.scrolldown()
+        elif scroll_delta < 0:
+            self.scrollup()
 
-        self.window.bind("<Button-1>", self.click)
+    def scrolldown(self):
+        max_y = self.document.height - self.height
+        self.scroll = min(self.scroll + SCROLL_STEP, max_y)
 
-    def click(self, e):
-        x, y = e.x, e.y
+    def scrollup(self):
+        self.scroll = max(self.scroll - SCROLL_STEP, 0)
+
+    def set_dimensions(self, width: int, height: int):
+        self.width, self.height = width, height
+
+    def click(self, x: int, y: int):
         y += self.scroll
 
         layouts_under_click = [layout for layout in tree_to_list(self.document, [])
@@ -141,29 +143,7 @@ class Browser:
 
             element = element.parent
 
-    def resize(self, e):
-        self.canvas.pack(fill='both', expand=1)
-        self.width, self.height = e.width, e.height
-        self.build_and_draw_document()
-
-    def mousewheel(self, e):
-        scroll_delta = SCROLL_STEP * -e.delta
-        if scroll_delta > 0:
-            self.scrolldown(e)
-        elif scroll_delta < 0:
-            self.scrollup(e)
-
-    def scrolldown(self, e):
-        max_y = self.document.height - self.height
-        self.scroll = min(self.scroll + SCROLL_STEP, max_y)
-        self.draw()
-
-    def scrollup(self, e):
-        self.scroll = max(self.scroll - SCROLL_STEP, 0)
-        self.draw()
-
-    def draw(self):
-        self.canvas.delete("all")
+    def draw(self, canvas: tkinter.Canvas):
         for command in self.display_list:
             if command.top > self.scroll + self.height:
                 # falls below the viewport
@@ -172,7 +152,7 @@ class Browser:
                 # falls above the viewport
                 continue
 
-            command.execute(self.scroll, self.canvas)
+            command.execute(self.scroll, canvas)
 
     def load(self, url: str):
         view_source = url.startswith("view-source:")
@@ -210,13 +190,69 @@ class Browser:
         style(self.nodes, sorted(rules, key=cascade_priority))
 
         self.scroll = 0
-        self.build_and_draw_document()
 
-    def build_and_draw_document(self):
+        self.build_and_paint_document()
+
+    def build_and_paint_document(self):
         self.document = DocumentLayout(only_body(self.nodes))
         self.document.layout(self.width)
         self.display_list: List[DrawRect | DrawText] = []
         self.document.paint(self.display_list)
+
+
+class Browser:
+    def __init__(self, initial_width: int, initial_height: int):
+        self.width, self.height = initial_width, initial_height
+        self.window = tkinter.Tk()
+        self.canvas = tkinter.Canvas(
+            self.window, width=self.width, height=self.height, bg="white")
+        self.canvas.pack()
+        self.scroll = 0
+
+        self.tabs = []
+        self.active_tab = None
+
+        # wait for TK paint, then bind the event listeners
+        self.window.wait_visibility(self.canvas)
+        self.window.bind("<Down>", self.handle_down)
+        self.window.bind("<Up>", self.handle_up)
+        self.window.bind("<MouseWheel>", self.handle_mousewheel)
+        self.window.bind("<Configure>", self.resize)
+
+        self.window.bind("<Button-1>", self.handle_click)
+
+    def handle_down(self, e):
+        self.tabs[self.active_tab].scrolldown()
+        self.draw()
+
+    def handle_up(self, e):
+        self.tabs[self.active_tab].scrollup()
+        self.draw()
+
+    def handle_mousewheel(self, e):
+        self.tabs[self.active_tab].mousewheel(e.delta)
+        self.draw()
+
+    def handle_click(self, e):
+        self.tabs[self.active_tab].click(e.x, e.y)
+        self.draw()
+
+    def resize(self, e):
+        self.canvas.pack(fill='both', expand=1)
+        self.width, self.height = e.width, e.height
+        self.tabs[self.active_tab].set_dimensions(self.width, self.height)
+        self.tabs[self.active_tab].build_and_paint_document()
+        self.draw()
+
+    def draw(self):
+        self.canvas.delete('all')
+        self.tabs[self.active_tab].draw(self.canvas)
+
+    def load(self, url):
+        new_tab = Tab(self.width, self.height)
+        new_tab.load(url)
+        self.active_tab = len(self.tabs)
+        self.tabs.append(new_tab)
         self.draw()
 
 
