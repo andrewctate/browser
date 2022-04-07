@@ -4,7 +4,7 @@ import tkinter.font
 
 from request import request_url, resolve_url
 from entities import chars_to_entity
-from layout import VSTEP, DocumentLayout, DrawRect, DrawText
+from layout import VSTEP, DocumentLayout, DrawRect, DrawText, get_font
 from css import DescendantSelector, TagSelector, CSSParser, print_rules
 from dom import Text, Element, HTMLParser, only_body
 
@@ -96,11 +96,14 @@ def tree_to_list(tree, list):
 
 
 SCROLL_STEP = 100
+CHROME_HEIGHT = 100
 
 
 class Tab:
     def __init__(self, width: int, height: int):
         self.set_dimensions(width, height)
+
+        self.history = []
 
         with open("browser.css") as f:
             self.default_style_sheet = CSSParser(f.read()).parse()
@@ -143,18 +146,25 @@ class Tab:
 
             element = element.parent
 
+    def go_back(self):
+        if len(self.history) > 1:
+            self.history.pop()
+            back = self.history.pop()
+            self.load(back)
+
     def draw(self, canvas: tkinter.Canvas):
         for command in self.display_list:
-            if command.top > self.scroll + self.height:
+            if command.top > self.scroll + self.height - CHROME_HEIGHT:
                 # falls below the viewport
                 continue
             if command.bottom + VSTEP < self.scroll:
                 # falls above the viewport
                 continue
 
-            command.execute(self.scroll, canvas)
+            command.execute(self.scroll - CHROME_HEIGHT, canvas)
 
     def load(self, url: str):
+        self.history.append(url)
         view_source = url.startswith("view-source:")
         if view_source:
             _, url = url.split(':', 1)
@@ -209,6 +219,8 @@ class Browser:
         self.canvas.pack()
         self.scroll = 0
 
+        self.home_page = "https://browser.engineering/"
+
         self.tabs = []
         self.active_tab = None
 
@@ -234,7 +246,15 @@ class Browser:
         self.draw()
 
     def handle_click(self, e):
-        self.tabs[self.active_tab].click(e.x, e.y)
+        if e.y < CHROME_HEIGHT:
+            if 40 <= e.x < 40 + 80 * len(self.tabs) and 0 <= e.y < 40:
+                self.active_tab = int((e.x - 40) / 80)
+            elif 10 <= e.x < 30 and 10 <= e.y < 30:
+                self.load(self.home_page)
+            elif 10 <= e.x < 35 and 40 <= e.y < 90:
+                self.tabs[self.active_tab].go_back()
+        else:
+            self.tabs[self.active_tab].click(e.x, e.y - CHROME_HEIGHT)
         self.draw()
 
     def resize(self, e):
@@ -247,6 +267,37 @@ class Browser:
     def draw(self):
         self.canvas.delete('all')
         self.tabs[self.active_tab].draw(self.canvas)
+
+        # fill in browser chrome
+        tab_width, tab_height = 80, 40
+        tabfont = get_font(20, "normal", "roman")
+        for i, tab in enumerate(self.tabs):
+            name = "Tab {}".format(i)
+            x1, x2 = tab_height + tab_width * i, 120 + tab_width * i
+            self.canvas.create_line(x1, 0, x1, 40, fill="black")
+            self.canvas.create_line(x2, 0, x2, 40, fill="black")
+            self.canvas.create_text(x1 + 10, 10, anchor="nw", text=name,
+                                    font=tabfont, fill="black")
+            if i == self.active_tab:
+                self.canvas.create_line(0, 40, x1, 40, fill="black")
+                self.canvas.create_line(x2, 40, self.width, 40, fill="black")
+
+        # draw the new-tab button
+        buttonfont = get_font(30, "normal", "roman")
+        self.canvas.create_rectangle(10, 10, 30, 30,
+                                     outline="black", width=1)
+        self.canvas.create_text(11, 0, anchor="nw", text="+",
+                                font=buttonfont, fill="black")
+
+        self.canvas.create_rectangle(40, 50, self.width - 10, 90,
+                                     outline="black", width=1)
+        url = self.tabs[self.active_tab].url
+        self.canvas.create_text(55, 55, anchor='nw', text=url,
+                                font=buttonfont, fill="black")
+        self.canvas.create_rectangle(10, 50, 35, 90,
+                                     outline="black", width=1)
+        self.canvas.create_polygon(
+            15, 70, 30, 55, 30, 85, fill='black')
 
     def load(self, url):
         new_tab = Tab(self.width, self.height)
