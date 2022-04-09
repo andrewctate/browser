@@ -4,7 +4,21 @@ import tkinter
 HSTEP, VSTEP = 13, 18
 PSTEP = VSTEP * .5
 
+# Draws borders around indicated layout types.
+# Use this to visually understand how things are being positioned and composed.
+SHOW_LAYOUTS = {
+    'text': False,
+    'line': False,
+    'inline': False,
+    'block': False,
+    'document': False
+}
+
 FONTS = {}
+
+
+def draw_bounding_rect(layout, fill=None, border_color=None):
+    return DrawRect(layout.x, layout.y, layout.x + layout.width, layout.y + layout.height, fill=fill, border_color=border_color)
 
 
 def get_font(size, weight, slant):
@@ -70,19 +84,23 @@ class DrawText:
 
 
 class DrawRect:
-    def __init__(self, x1, y1, x2, y2, color):
+    def __init__(self, x1, y1, x2, y2, fill=None, border_color=None):
         self.top = y1
         self.left = x1
         self.bottom = y2
         self.right = x2
-        self.color = color
+        self.fill = fill
+        self.border_color = border_color
 
     def execute(self, scroll: int, canvas: tkinter.Canvas):
+        border_width = 2 if self.border_color else 0
+
         canvas.create_rectangle(
             self.left, self.top - scroll,
             self.right, self.bottom - scroll,
-            width=0,
-            fill=self.color,
+            width=border_width,
+            outline=self.border_color,
+            fill=self.fill
         )
 
 
@@ -119,6 +137,9 @@ class TextLayout:
         color = self.node.style["color"]
         display_list.append(
             DrawText(self.x, self.y, self.word, self.font, color))
+
+        if SHOW_LAYOUTS['text']:
+            display_list.append(draw_bounding_rect(self, border_color='red'))
 
 
 class LineLayout:
@@ -165,6 +186,9 @@ class LineLayout:
         for child in self.children:
             child.paint(display_list)
 
+        if SHOW_LAYOUTS['line']:
+            display_list.append(draw_bounding_rect(self, border_color='green'))
+
 
 class InlineLayout:
     def __init__(self, node, parent, previous) -> None:
@@ -200,12 +224,13 @@ class InlineLayout:
         bgcolor = self.node.style.get("background-color",
                                       "transparent")
         if bgcolor != "transparent":
-            x2, y2 = self.x + self.width, self.y + self.height
-            rect = DrawRect(self.x, self.y, x2, y2, bgcolor)
-            display_list.append(rect)
+            display_list.append(draw_bounding_rect(self, fill=bgcolor))
 
         for child in self.children:
             child.paint(display_list)
+
+        if SHOW_LAYOUTS['inline']:
+            display_list.append(draw_bounding_rect(self, border_color='blue'))
 
     def recurse(self, tree: Text | Element):
         if isinstance(tree, Text):
@@ -301,6 +326,10 @@ class BlockLayout:
         for child in self.children:
             child.paint(display_list)
 
+        if SHOW_LAYOUTS['block']:
+            display_list.append(draw_bounding_rect(
+                self, border_color='orange'))
+
 
 class DocumentLayout:
     def __init__(self, node) -> None:
@@ -320,3 +349,7 @@ class DocumentLayout:
 
     def paint(self, display_list):
         self.children[0].paint(display_list)
+
+        if SHOW_LAYOUTS['document']:
+            display_list.append(draw_bounding_rect(
+                self, border_color='purple'))
