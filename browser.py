@@ -210,6 +210,9 @@ class Tab:
         self.document.paint(self.display_list)
 
 
+HOME_PAGE = "https://browser.engineering/"
+
+
 class Browser:
     def __init__(self, initial_width: int, initial_height: int):
         self.width, self.height = initial_width, initial_height
@@ -218,8 +221,6 @@ class Browser:
             self.window, width=self.width, height=self.height, bg="white")
         self.canvas.pack()
         self.scroll = 0
-
-        self.home_page = "https://browser.engineering/"
 
         self.tabs = []
         self.active_tab = None
@@ -257,7 +258,7 @@ class Browser:
             if 40 <= e.x < 40 + 80 * len(self.tabs) and 0 <= e.y < 40:
                 self.active_tab = int((e.x - 40) / 80)
             elif 10 <= e.x < 30 and 10 <= e.y < 30:
-                self.load(self.home_page)
+                self.load(HOME_PAGE)
             elif 10 <= e.x < 35 and 40 <= e.y < 90:
                 self.tabs[self.active_tab].go_back()
             elif 50 <= e.x < self.width - 10 and 40 <= e.y < 90:
@@ -269,14 +270,21 @@ class Browser:
         self.draw()
 
     def handle_key(self, e):
-        if len(e.char) == 0:
-            return
-        if not (0x20 <= ord(e.char) < 0x7f):
-            # outside ascii character range
-            return
+        is_backspace = e.keysym == 'BackSpace'
+
+        if not is_backspace:
+            if len(e.char) == 0:
+                return
+
+            if not (0x20 <= ord(e.char) < 0x7f):
+                # outside ascii character range and not backspace
+                return
 
         if self.focus == "address bar":
-            self.address_bar += e.char
+            if is_backspace:
+                self.address_bar = self.address_bar[0:-1]
+            else:
+                self.address_bar += e.char
             self.draw()
 
     def handle_enter(self, e):
@@ -348,5 +356,6 @@ class Browser:
 
 if __name__ == '__main__':
     import sys
-    Browser(800, 600).load(sys.argv[1])
+    initial_url = sys.argv[1] if len(sys.argv) < 1 else HOME_PAGE
+    Browser(800, 600).load(initial_url)
     tkinter.mainloop()
