@@ -224,6 +224,9 @@ class Browser:
         self.tabs = []
         self.active_tab = None
 
+        self.focus = None
+        self.address_bar = ""
+
         # wait for TK paint, then bind the event listeners
         self.window.wait_visibility(self.canvas)
         self.window.bind("<Down>", self.handle_down)
@@ -232,6 +235,8 @@ class Browser:
         self.window.bind("<Configure>", self.resize)
 
         self.window.bind("<Button-1>", self.handle_click)
+        self.window.bind("<Key>", self.handle_key)
+        self.window.bind("<Return>", self.handle_enter)
 
     def handle_down(self, e):
         self.tabs[self.active_tab].scrolldown()
@@ -246,6 +251,8 @@ class Browser:
         self.draw()
 
     def handle_click(self, e):
+        self.focus = None
+
         if e.y < CHROME_HEIGHT:
             if 40 <= e.x < 40 + 80 * len(self.tabs) and 0 <= e.y < 40:
                 self.active_tab = int((e.x - 40) / 80)
@@ -253,9 +260,30 @@ class Browser:
                 self.load(self.home_page)
             elif 10 <= e.x < 35 and 40 <= e.y < 90:
                 self.tabs[self.active_tab].go_back()
+            elif 50 <= e.x < self.width - 10 and 40 <= e.y < 90:
+                self.focus = "address bar"
+                self.address_bar = ""
         else:
             self.tabs[self.active_tab].click(e.x, e.y - CHROME_HEIGHT)
+
         self.draw()
+
+    def handle_key(self, e):
+        if len(e.char) == 0:
+            return
+        if not (0x20 <= ord(e.char) < 0x7f):
+            # outside ascii character range
+            return
+
+        if self.focus == "address bar":
+            self.address_bar += e.char
+            self.draw()
+
+    def handle_enter(self, e):
+        if self.focus == "address bar":
+            self.tabs[self.active_tab].load(self.address_bar)
+            self.focus = None
+            self.draw()
 
     def resize(self, e):
         self.canvas.pack(fill='both', expand=1)
@@ -289,11 +317,22 @@ class Browser:
         self.canvas.create_text(11, 0, anchor="nw", text="+",
                                 font=buttonfont, fill="black")
 
+        # draw the address bar
         self.canvas.create_rectangle(40, 50, self.width - 10, 90,
                                      outline="black", width=1)
-        url = self.tabs[self.active_tab].url
-        self.canvas.create_text(55, 55, anchor='nw', text=url,
-                                font=buttonfont, fill="black")
+
+        if self.focus == "address bar":
+            self.canvas.create_text(
+                55, 55, anchor='nw', text=self.address_bar,
+                font=buttonfont, fill="black")
+            w = buttonfont.measure(self.address_bar)
+            self.canvas.create_line(55 + w, 55, 55 + w, 85, fill="black")
+        else:
+            url = self.tabs[self.active_tab].url
+            self.canvas.create_text(55, 55, anchor='nw', text=url,
+                                    font=buttonfont, fill="black")
+
+        # draw back button
         self.canvas.create_rectangle(10, 50, 35, 90,
                                      outline="black", width=1)
         self.canvas.create_polygon(
