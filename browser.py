@@ -346,6 +346,9 @@ class Browser:
         self.canvas.create_polygon(
             15, 70, 30, 55, 30, 85, fill='black')
 
+        self.canvas.create_line(
+            0, CHROME_HEIGHT, self.width, CHROME_HEIGHT, fill="black")
+
     def load(self, url):
         new_tab = Tab(self.width, self.height)
         new_tab.load(url)
