@@ -305,6 +305,9 @@ class Browser:
         self.tabs[self.active_tab].draw(self.canvas)
 
         # fill in browser chrome
+        self.canvas.create_rectangle(
+            0, 0, self.width, CHROME_HEIGHT, fill="white", width=0)
+
         tab_width, tab_height = 80, 40
         tabfont = get_font(20, "normal", "roman")
         for i, tab in enumerate(self.tabs):
