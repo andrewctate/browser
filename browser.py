@@ -100,8 +100,9 @@ CHROME_HEIGHT = 100
 
 
 class Tab:
-    def __init__(self, width: int, height: int):
+    def __init__(self, width: int, height: int, trigger_render):
         self.set_dimensions(width, height)
+        self.trigger_render = trigger_render
 
         self.history = []
 
@@ -128,7 +129,8 @@ class Tab:
     def click(self, x: int, y: int):
         y += self.scroll
 
-        layouts_under_click = [layout for layout in tree_to_list(self.document, [])
+        layouts = tree_to_list(self.document, [])
+        layouts_under_click = [layout for layout in layouts
                                if layout.x <= x < layout.x + layout.width
                                and layout.y <= y < layout.y + layout.height]
 
@@ -141,8 +143,15 @@ class Tab:
             if isinstance(element, Text):
                 pass
             elif element.tag == 'a':
-                href_url = resolve_url(element.attributes['href'], self.url)
+                href = element.attributes['href']
+                href_url = resolve_url(href, self.url)
                 self.load(href_url)
+                if href.startswith('#'):
+                    for layout in filter(lambda layout: isinstance(layout.node, Element), layouts):
+                        attributes = layout.node.attributes
+                        if 'id' in attributes and attributes['id'] == href[1:]:
+                            self.scroll = layout.y
+                            self.trigger_render()
 
             element = element.parent
 
@@ -220,7 +229,6 @@ class Browser:
         self.canvas = tkinter.Canvas(
             self.window, width=self.width, height=self.height, bg="white")
         self.canvas.pack()
-        self.scroll = 0
 
         self.tabs = []
         self.active_tab = None
@@ -292,6 +300,10 @@ class Browser:
             self.focus = None
             self.draw()
 
+    def trigger_tab_render(self):
+        """Tabs can use this function to trigger a draw"""
+        self.draw()
+
     def resize(self, e):
         self.canvas.pack(fill='both', expand=1)
         self.width, self.height = e.width, e.height
@@ -352,7 +364,7 @@ class Browser:
             0, CHROME_HEIGHT, self.width, CHROME_HEIGHT, fill="black")
 
     def load(self, url):
-        new_tab = Tab(self.width, self.height)
+        new_tab = Tab(self.width, self.height, self.trigger_tab_render)
         new_tab.load(url)
         self.active_tab = len(self.tabs)
         self.tabs.append(new_tab)
