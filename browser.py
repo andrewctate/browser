@@ -226,7 +226,7 @@ class Browser:
         self.active_tab = None
 
         self.focus = None
-        self.address_bar = ""
+        self.address_bar = HOME_PAGE
 
         # wait for TK paint, then bind the event listeners
         self.window.wait_visibility(self.canvas)
@@ -263,7 +263,6 @@ class Browser:
                 self.tabs[self.active_tab].go_back()
             elif 50 <= e.x < self.width - 10 and 40 <= e.y < 90:
                 self.focus = "address bar"
-                self.address_bar = ""
         else:
             self.tabs[self.active_tab].click(e.x, e.y - CHROME_HEIGHT)
 
