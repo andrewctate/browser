@@ -1,6 +1,6 @@
 # Browser
 
-This is a toy browser I'm building to learn about the web browser platform. I'm mostly following the excellent curriculum at https://browser.engineering.
+This is a toy browser I'm building to learn more about the workings of the web platform. I'm mostly following the excellent curriculum at https://browser.engineering.
 
 ![Browser screenshot](/imgs/browser.png "Browser in action")
 ![Browser screenshot with layout annotations](/imgs/layout_tree.png "With layout annotations")
