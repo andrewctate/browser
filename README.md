@@ -1,3 +1,10 @@
+# Browser
+
+This is a toy browser I'm building to learn about the web browser platform. I'm mostly following the excellent curriculum at https://browser.engineering.
+
+![Browser screenshot](/imgs/browser.png "Browser in action")
+![Browser screenshot with layout annotations](/imgs/layout_tree.png "With layout annotations")
+
 ## Supported Features
 
 ### Requests
@@ -26,10 +33,24 @@
 
 ### Styling
 
-- Parses basic inline CSS
+- Supports tag name and descendant selectors (no classes)
+- Applies inline CSS and linked stylesheets
+- Respects file-order tie-breaker rule
 - Robust to malformed/unsupported properties
 - Supported properties
   - `background-color`
+  - `font-size` (inherited, supports `px` and `%`)
+  - `font-style` (inherited)
+  - `font-weight` (inherited)
+  - `color` (inherited)
+
+### Navigation
+
+- Supports multiple tabs
+- Navigation by address bar
+- Back button
+- Hyperlinks
+- URL fragments
 
 ### Misc
 
