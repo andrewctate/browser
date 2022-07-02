@@ -2,7 +2,11 @@
 
 This is a toy browser I'm building to learn more about the workings of the web platform. I'm mostly following the excellent curriculum at https://browser.engineering.
 
+## Screenshots
+### Browser in action
 ![Browser screenshot](/imgs/browser.png "Browser in action")
+
+### With layout annotations
 ![Browser screenshot with layout annotations](/imgs/layout_tree.png "With layout annotations")
 
 ## Supported Features
